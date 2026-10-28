@@ -57,16 +57,17 @@ const FuriganaEngine = {
   },
 
   currentAudio: null,
-  voicevoxSpeakerId: 17, // 預設 17: 九州そら（セクシー / 魅惑性感成熟大姊姊音）
+  voicevoxSpeakerId: 0, // 預設 0: 瀏覽器動漫高甜少女音 (1.38 Pitch) 零延遲且穩定絕不跑掉
 
   setVoiceStyle(speakerId) {
-    this.voicevoxSpeakerId = parseInt(speakerId) || 17;
+    this.voicevoxSpeakerId = parseInt(speakerId) || 0;
   },
 
   /**
-   * 詩織日語語音朗讀核心 (VOICEVOX 色氣動漫音 + 瀏覽器動漫調諧音雙引擎)
+   * 詩織日語語音朗讀核心 (預設直接調用動漫高甜調諧音，零秒延遲且穩定絕不跑掉)
    */
-  async speak(text) {
+  speak(text) {
+    if (!text) return;
     // 去除括號讀音與 HTML 標籤只保留純文字
     const cleanText = text.replace(/\[.*?\]/g, "").replace(/<[^>]*>/g, "").trim();
     if (!cleanText) return;
@@ -79,41 +80,101 @@ const FuriganaEngine = {
       } catch (e) {}
     }
 
-    // 1. 優先嘗試調用 VOICEVOX 超高人氣色氣動漫女聲 (九州そら セクシー)
-    try {
-      const ok = await this.playVoicevox(cleanText);
-      if (ok) return;
-    } catch (err) {
-      console.warn("VOICEVOX 雲端生成暫時異常，切換至動漫調諧語音：", err);
+    // 若使用者主動在設定選擇了 VOICEVOX 聲線 (> 0) 才嘗試網路合成
+    if (this.voicevoxSpeakerId && this.voicevoxSpeakerId > 0) {
+      this.playVoicevox(cleanText).catch(() => {
+        this.speakBrowser(cleanText);
+      });
+      return;
     }
 
-    // 2. 備用方案：瀏覽器 Web Speech API (經過年輕動漫女聲重度調頻，告別老阿姨)
+    // 預設一律直接以瀏覽器動漫少女調諧音立即發音 (同步觸發，零延遲，絕不跑掉)
     this.speakBrowser(cleanText);
   },
 
   /**
-   * 調用 VOICEVOX 線上日式動漫角色語音
+   * 取得跨平台最佳日語語音包 (支援 Windows, Mac, Android ja_JP, iOS)
+   */
+  getBestJapaneseVoice() {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    // 1. 優先尋找 Google 日本語 (Chrome 內建極高品質神經網路語音)
+    const googleJa = voices.find((v) => 
+      v.name.includes("Google") && (v.lang.toLowerCase().startsWith("ja") || v.name.includes("日本語") || v.name.includes("Japanese"))
+    );
+    if (googleJa) return googleJa;
+
+    // 2. 尋找常見優質女性日語音 (Nanami, Kyoko, Ayumi, Aoi, Mayu)
+    const femaleJa = voices.find((v) => {
+      const l = v.lang.replace("_", "-").toLowerCase();
+      const n = v.name.toLowerCase();
+      return l.startsWith("ja") && (n.includes("female") || n.includes("nanami") || n.includes("kyoko") || n.includes("ayumi") || n.includes("aoi") || n.includes("mayu"));
+    });
+    if (femaleJa) return femaleJa;
+
+    // 3. 任何日語語音 (相容 Android 的 ja_JP、Windows、Mac)
+    const anyJa = voices.find((v) => {
+      const l = v.lang.replace("_", "-").toLowerCase();
+      return l.startsWith("ja") || v.name.toLowerCase().includes("japanese") || v.name.includes("日本語");
+    });
+    return anyJa || null;
+  },
+
+  /**
+   * 瀏覽器 Web Speech API 核心 (1.38 Pitch 高甜動漫調音)
+   */
+  speakBrowser(cleanText) {
+    if (!("speechSynthesis" in window)) {
+      console.warn("當前瀏覽器不支援 Web Speech API");
+      return;
+    }
+
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    window.speechSynthesis.cancel(); // 停止先前的朗讀
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = "ja-JP";
+    // 關鍵高甜調音：Pitch 設為 1.38，語速 1.05，徹底消除老太婆慢速機械老態！
+    utterance.pitch = 1.38;
+    utterance.rate = 1.05;
+
+    const voice = this.getBestJapaneseVoice();
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.onerror = (e) => {
+      console.warn("Web Speech API 朗讀異常：", e);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  },
+
+  /**
+   * 調用 VOICEVOX 線上日式動漫角色語音 (備選)
    */
   async playVoicevox(text) {
-    // 截取適當長度避免生成延遲過久
     const shortText = text.slice(0, 120);
     const speakerId = this.voicevoxSpeakerId || 17;
     const url = `https://api.tts.quest/v3/voicevox/synthesis?text=${encodeURIComponent(shortText)}&speaker=${speakerId}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
-    if (!res.ok) return false;
+    if (!res.ok) throw new Error("VOICEVOX 請求失敗");
 
     const data = await res.json();
-    if (!data.success && !data.mp3DownloadUrl) return false;
+    if (!data.success && !data.mp3DownloadUrl) throw new Error("VOICEVOX 未返回音訊");
 
     const mp3Url = data.mp3DownloadUrl || data.wavDownloadUrl;
     const statusUrl = data.audioStatusUrl;
 
-    // 輪詢確認音訊合成完成 (通常 0.5 ~ 1 秒完成)
     if (statusUrl) {
       for (let i = 0; i < 5; i++) {
         try {
@@ -125,47 +186,14 @@ const FuriganaEngine = {
       }
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const audio = new Audio(mp3Url);
       this.currentAudio = audio;
       audio.onplay = () => resolve(true);
-      audio.onerror = () => resolve(false);
-      audio.play().catch(() => resolve(false));
-      setTimeout(() => resolve(true), 2000);
+      audio.onerror = () => reject(new Error("音訊播放錯誤"));
+      audio.play().catch((err) => reject(err));
+      setTimeout(() => resolve(true), 1500);
     });
-  },
-
-  /**
-   * 瀏覽器 Web Speech API 備用語音 (經高調音修正)
-   */
-  speakBrowser(cleanText) {
-    if (!("speechSynthesis" in window)) {
-      console.warn("當前瀏覽器不支援 Web Speech API");
-      return;
-    }
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = "ja-JP";
-    // 關鍵調音：大幅拉高音調 (Pitch) 與語速 (Rate)，徹底消除沉悶機器人老態！
-    utterance.pitch = 1.38; // 1.38 動漫高甜調音
-    utterance.rate = 1.08;  // 1.08 輕快自然少女/少婦語速
-
-    const voices = window.speechSynthesis.getVoices();
-    if (voices && voices.length > 0) {
-      const googleVoice = voices.find((v) => v.name.includes("Google 日本語"));
-      const femaleJaVoice = voices.find(
-        (v) => (v.lang.startsWith("ja") || v.lang.includes("JP")) &&
-               (v.name.includes("Nanami") || v.name.includes("Kyoko") || v.name.includes("Aoi") || v.name.includes("Mayu") || v.name.includes("Ayumi"))
-      );
-      const anyJaVoice = voices.find((v) => v.lang.startsWith("ja") || v.lang.includes("JP"));
-      if (googleVoice || femaleJaVoice || anyJaVoice) {
-        utterance.voice = googleVoice || femaleJaVoice || anyJaVoice;
-      }
-    }
-
-    window.speechSynthesis.speak(utterance);
   },
 
   /**

@@ -1115,12 +1115,12 @@ const App = {
 
     if (kInput) kInput.value = this.settings.geminiApiKey || "";
     if (mSelect) mSelect.value = this.settings.geminiModel || "gemini-3.5-flash-lite";
-    if (vSelect) vSelect.value = this.settings.voiceStyle || 17;
+    if (vSelect) vSelect.value = this.settings.voiceStyle !== undefined ? this.settings.voiceStyle : 0;
     if (pInput) pInput.value = this.settings.githubPat || "";
     if (rInput) rInput.value = this.settings.githubRepo || "snake19910808/nihongo-save";
 
     if (window.FuriganaEngine) {
-      window.FuriganaEngine.setVoiceStyle(this.settings.voiceStyle || 17);
+      window.FuriganaEngine.setVoiceStyle(this.settings.voiceStyle !== undefined ? this.settings.voiceStyle : 0);
     }
   },
 
