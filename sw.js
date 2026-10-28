@@ -1,5 +1,5 @@
 // Service Worker for Nihongo Guild PWA
-const CACHE_NAME = "nihongo-guild-v8";
+const CACHE_NAME = "nihongo-guild-v9";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

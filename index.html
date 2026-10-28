@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 
@@ -343,11 +343,30 @@
 
         <!-- Gemini 模型切換 -->
         <div style="margin-bottom:20px;">
-          <label style="display:block;margin-bottom:6px;font-weight:bold;">🧠 Gemini 模型選擇：</label>
+          <label style="display:block;margin-bottom:6px;font-weight:bold;">🧠 Gemini 模型選擇（支援多層自動切換）：</label>
           <select id="settingGeminiModel" class="chat-input" style="width:100%;">
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash (推薦・速度快且免費額度充足)</option>
-            <option value="gemini-1.5-flash">Gemini 1.5 Flash (經典輕量)</option>
+            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (🥇 推薦首選・每日 500 次・高頻對話不塞車)</option>
+            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (🥈 第一備用・每日 500 次)</option>
+            <option value="gemma-4-26b-a4b-it">Gemma 4 26B (🥉 海量備用・每日 14,400 次)</option>
           </select>
+          <div style="font-size:0.8rem;color:var(--text-sub);margin-top:4px;">
+            * 系統內建故障轉移：若當前模型繁忙或達限，將自動無感切換至候補模型，絕不卡死中斷。
+          </div>
+        </div>
+
+        <!-- 詩織語音風格選擇 -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;margin-bottom:6px;font-weight:bold;">🎙️ 詩織日語語音風格：</label>
+          <select id="settingVoiceStyle" class="chat-input" style="width:100%;">
+            <option value="17">💜 九州そら・魅惑色氣大姊姊（セクシー / 聲優級色氣御姐音，預設推薦）</option>
+            <option value="15">💖 九州そら・甜美撒嬌軟妹（あまあま / 溫柔撒嬌女僕音）</option>
+            <option value="19">🤫 九州そら・貼耳氣音耳語（ささやき / 療癒 ASMR）</option>
+            <option value="4">🌸 四国めたん・傲嬌大小姐（セクシー / 傲嬌性感音）</option>
+            <option value="0">🤖 瀏覽器本機動漫調諧音（離線備用・已優化高甜女聲）</option>
+          </select>
+          <div style="font-size:0.8rem;color:var(--text-sub);margin-top:4px;">
+            * 採用日本專業動漫語音合成引擎 VOICEVOX，給您聲優級溫柔微醺的日系大姊姊陪伴體驗！
+          </div>
         </div>
 
         <hr style="border:none;border-top:1px solid var(--border-subtle);margin:20px 0;">
@@ -402,12 +421,12 @@
   </div>
 
   <!-- JavaScript 核心腳本 -->
-  <script src="js/furigana.js?v=8"></script>
-  <script src="js/sync.js?v=8"></script>
-  <script src="js/srs.js?v=8"></script>
-  <script src="js/battle.js?v=8"></script>
-  <script src="js/shiori_ai.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/furigana.js?v=9"></script>
+  <script src="js/sync.js?v=9"></script>
+  <script src="js/srs.js?v=9"></script>
+  <script src="js/battle.js?v=9"></script>
+  <script src="js/shiori_ai.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 
 </body>
 </html>

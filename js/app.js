@@ -1028,12 +1028,17 @@ const App = {
     if (saveBtn) {
       saveBtn.addEventListener("click", () => {
         this.settings.geminiApiKey = document.getElementById("settingGeminiKey").value.trim();
-        this.settings.geminiModel = document.getElementById("settingGeminiModel").value;
+        this.settings.geminiModel = document.getElementById("settingGeminiModel").value || "gemini-3.5-flash-lite";
+        const voiceStyle = document.getElementById("settingVoiceStyle")?.value || 17;
+        this.settings.voiceStyle = voiceStyle;
+        if (window.FuriganaEngine) {
+          window.FuriganaEngine.setVoiceStyle(voiceStyle);
+        }
         this.settings.githubPat = document.getElementById("settingGithubPat").value.trim();
         this.settings.githubRepo = document.getElementById("settingGithubRepo").value.trim();
 
         window.SyncManager.saveSettings(this.settings);
-        this.showToast("設定已儲存成功！", "success");
+        this.showToast("設定已儲存成功！已套用全新動漫音質。", "success");
       });
     }
 
@@ -1104,13 +1109,19 @@ const App = {
   fillSettingsForm() {
     const kInput = document.getElementById("settingGeminiKey");
     const mSelect = document.getElementById("settingGeminiModel");
+    const vSelect = document.getElementById("settingVoiceStyle");
     const pInput = document.getElementById("settingGithubPat");
     const rInput = document.getElementById("settingGithubRepo");
 
     if (kInput) kInput.value = this.settings.geminiApiKey || "";
-    if (mSelect) mSelect.value = this.settings.geminiModel || "gemini-2.5-flash";
+    if (mSelect) mSelect.value = this.settings.geminiModel || "gemini-3.5-flash-lite";
+    if (vSelect) vSelect.value = this.settings.voiceStyle || 17;
     if (pInput) pInput.value = this.settings.githubPat || "";
     if (rInput) rInput.value = this.settings.githubRepo || "snake19910808/nihongo-save";
+
+    if (window.FuriganaEngine) {
+      window.FuriganaEngine.setVoiceStyle(this.settings.voiceStyle || 17);
+    }
   },
 
   saveProgress() {
