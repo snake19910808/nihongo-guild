@@ -56,6 +56,10 @@ const FuriganaEngine = {
     return this.parseToRuby(text);
   },
 
+  toRubyHtml(text) {
+    return this.parseToRuby(text);
+  },
+
   currentAudio: null,
   voicevoxSpeakerId: 0, // 預設 0: 瀏覽器動漫高甜少女音 (1.38 Pitch) 零延遲且穩定絕不跑掉
 

@@ -1,97 +1,152 @@
 /**
- * srs.js - SM-2 間隔重複記憶抽認卡系統
+ * srs.js - SM-2 間隔重複記憶神殿（日常化 5～15 張無痛打卡 + 自由檢索）
+ * Daily-Bite-Sized SRS Deck Tied to 398-Day Plan + Full Mastery Deck
  */
 
 const SRSManager = {
   allCards: [],
   dueCards: [],
   currentCardIndex: 0,
+  mode: "daily", // "daily" (今日 5~15 張精準打卡) | "all" (全書庫自主複習)
   filterLevel: "ALL", // "ALL", "N5", "N4", "N3", "KANJI"
+  dailyCardsCount: 0,
+  dailyCompletedCount: 0,
 
-  init(vocabData, kanjiData, kanaData, savedCards = {}) {
+  init(vocabData, kanjiData, kanaData, savedCards = {}, scheduleDayData = null) {
     this.allCards = [];
+    const saved = savedCards || {};
 
-    // 載入假名卡
-    kanaData.forEach((k) => {
+    // 1. 假名卡
+    (kanaData || []).forEach((k) => {
       this.allCards.push({
         id: k.id,
         type: "kana",
         level: "N5",
         front: k.hiragana,
-        subFront: k.katakana,
+        subFront: `片假名：${k.katakana}`,
         back: k.romaji,
         reading: k.hiragana,
-        meaning: `發音 [${k.romaji}]・${k.example || ""}`,
-        example: k.example || ""
+        meaning: `羅馬拼音 [${k.romaji}]・${k.example || ""}`,
+        example: k.example || "",
+        tags: ["kana", k.hiragana, k.katakana, k.romaji]
       });
     });
 
-    // 載入漢字卡
-    kanjiData.forEach((k) => {
+    // 2. 漢字卡
+    (kanjiData || []).forEach((k) => {
       this.allCards.push({
         id: k.id,
         type: "kanji",
         level: k.level,
         front: k.kanji,
-        subFront: `筆畫：${k.strokes} 畫`,
+        subFront: `筆畫：${k.strokes} 畫 ｜ ${k.level}`,
         back: k.meaningZh,
-        reading: `音：${k.onyomi || "—"} / 訓：${k.kunyomi || "—"}`,
+        reading: `音讀：${k.onyomi || "—"} / 訓讀：${k.kunyomi || "—"}`,
         meaning: k.meaningZh,
-        example: (k.examples || []).join("、")
+        example: (k.examples || []).join("、"),
+        tags: ["kanji", k.kanji, k.meaningZh]
       });
     });
 
-    // 載入單字卡
-    vocabData.forEach((v) => {
+    // 3. 單字卡
+    (vocabData || []).forEach((v) => {
       this.allCards.push({
         id: v.id,
         type: "vocab",
         level: v.level,
         front: v.word,
-        subFront: `[${v.pos || "單字"}]`,
+        subFront: `[${v.pos || "單字"}] ｜ ${v.level}`,
         back: v.meaningZh,
         reading: v.reading,
         meaning: v.meaningZh,
-        example: v.exampleSentence ? v.exampleSentence.ja : ""
+        example: v.exampleSentence ? v.exampleSentence.ja : "",
+        tags: ["vocab", v.word, v.reading, v.meaningZh]
       });
     });
 
-    // 合併存檔中的 SRS 狀態
+    // 合併存檔狀態
     const todayStr = new Date().toISOString().split("T")[0];
     this.allCards.forEach((c) => {
-      const s = savedCards[c.id];
+      const s = saved[c.id];
       if (s) {
         c.interval = s.interval;
         c.repetition = s.repetition;
         c.efactor = s.efactor;
         c.dueDate = s.dueDate;
+        c.isLearned = true;
       } else {
         c.interval = 0;
         c.repetition = 0;
         c.efactor = 2.5;
-        c.dueDate = todayStr; // 新卡預設今天可複習
+        c.dueDate = null; // 未排程的新卡
+        c.isLearned = false;
       }
     });
 
-    this.filterDueCards();
+    this.rebuildDeck(scheduleDayData);
+  },
+
+  /**
+   * 重構抽認卡牌組（優先建立今日 5～15 張課堂卡片）
+   */
+  rebuildDeck(scheduleDayData = null) {
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    if (this.mode === "daily") {
+      // 提取今日課表分配之單字與漢字
+      let targetIds = new Set();
+      if (scheduleDayData) {
+        (scheduleDayData.assignedVocab || []).forEach((w) => {
+          const match = this.allCards.find((c) => c.front === w || c.reading === w);
+          if (match) targetIds.add(match.id);
+        });
+        (scheduleDayData.assignedKanji || []).forEach((k) => {
+          const match = this.allCards.find((c) => c.front === k);
+          if (match) targetIds.add(match.id);
+        });
+        (scheduleDayData.assignedKana || []).forEach((k) => {
+          const match = this.allCards.find((c) => c.front === k);
+          if (match) targetIds.add(match.id);
+        });
+      }
+
+      // 如果今日課表卡少於 8 張，補充歷史到期需要複習的卡片
+      const dueCardsHistory = this.allCards.filter((c) => c.dueDate && c.dueDate <= todayStr);
+      dueCardsHistory.slice(0, 10).forEach((c) => targetIds.add(c.id));
+
+      // 若還是不足，從 N5/假名中補充至 8 張（確保初學者隨時有卡可背）
+      if (targetIds.size < 5) {
+        const fallbacks = this.allCards.filter((c) => c.level === "N5" || c.type === "kana");
+        for (let i = 0; i < fallbacks.length && targetIds.size < 8; i++) {
+          targetIds.add(fallbacks[i].id);
+        }
+      }
+
+      this.dueCards = this.allCards.filter((c) => targetIds.has(c.id));
+      this.dailyCardsCount = this.dueCards.length;
+      this.dailyCompletedCount = 0;
+    } else {
+      // 全庫自主檢索模式
+      this.dueCards = this.allCards.filter((c) => {
+        if (this.filterLevel === "ALL") return true;
+        if (this.filterLevel === "KANJI") return c.type === "kanji";
+        return c.level === this.filterLevel;
+      });
+    }
+
+    this.currentCardIndex = 0;
+  },
+
+  setMode(mode, scheduleDayData = null) {
+    this.mode = mode;
+    this.rebuildDeck(scheduleDayData);
   },
 
   setFilter(lvl) {
     this.filterLevel = lvl;
-    this.filterDueCards();
-    this.renderCurrentCard();
-  },
-
-  filterDueCards() {
-    const todayStr = new Date().toISOString().split("T")[0];
-    this.dueCards = this.allCards.filter((c) => {
-      const isDue = c.dueDate <= todayStr;
-      if (!isDue) return false;
-      if (this.filterLevel === "ALL") return true;
-      if (this.filterLevel === "KANJI") return c.type === "kanji";
-      return c.level === this.filterLevel;
-    });
-    this.currentCardIndex = 0;
+    if (this.mode === "all") {
+      this.rebuildDeck();
+    }
   },
 
   getCurrentCard() {
@@ -99,15 +154,11 @@ const SRSManager = {
     return this.dueCards[this.currentCardIndex % this.dueCards.length];
   },
 
-  /**
-   * SM-2 評分計算 (rating: 1=Again, 2=Hard, 3=Good, 4=Easy)
-   */
-  answerCard(rating) {
+  gradeCurrentCard(rating) {
     const card = this.getCurrentCard();
     if (!card) return;
 
-    // SM-2 演算法核心
-    // rating 轉換為 SM-2 的 quality (0~5): 1->1, 2->3, 3->4, 4->5
+    // SM-2 演算法 (rating: 1=Again, 2=Hard, 3=Good, 4=Easy)
     const qMap = { 1: 1, 2: 3, 3: 4, 4: 5 };
     const quality = qMap[rating] || 3;
 
@@ -123,52 +174,51 @@ const SRSManager = {
         card.interval = Math.round(card.interval * card.efactor);
       }
       card.repetition += 1;
+      card.isLearned = true;
     }
 
     card.efactor = Math.max(1.3, card.efactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
 
-    // 計算下次到期日
+    // 到期日計算
     const nextDate = new Date();
     nextDate.setDate(nextDate.getDate() + card.interval);
     card.dueDate = nextDate.toISOString().split("T")[0];
 
-    // 更新到全域存檔
-    if (window.App && window.App.playerData) {
-      window.App.playerData.srs.cards[card.id] = {
-        interval: card.interval,
-        repetition: card.repetition,
-        efactor: card.efactor,
-        dueDate: card.dueDate
-      };
-      
-      // 給予少許 EXP 與金幣
-      window.App.addRewards(rating >= 3 ? 5 : 2, 1);
-      window.App.saveProgress();
+    // 更新每日完成進度
+    if (quality >= 3) {
+      this.dailyCompletedCount++;
     }
 
-    // 移動到下一張
-    this.dueCards.splice(this.currentCardIndex, 1);
-    if (this.dueCards.length > 0) {
-      this.currentCardIndex = this.currentCardIndex % this.dueCards.length;
-    }
-    this.renderCurrentCard();
-  },
+    // 移除當前已過關卡片
+    this.dueCards.splice(this.currentCardIndex % this.dueCards.length, 1);
 
-  gradeCurrentCard(rating) {
-    this.answerCard(rating);
+    // 檢查今日卡包是否全數通關
+    if (this.dueCards.length === 0 && this.mode === "daily") {
+      if (window.App && window.App.showToast) {
+        window.App.showToast("🎉 恭喜完成今日抽認卡修煉！已完成今日【神殿複習】子委託！", "success");
+      }
+      // 自動打勾今日任務
+      if (window.App && window.App.markTaskComplete) {
+        window.App.markTaskComplete("task_srs");
+      }
+    }
   },
 
   getStats() {
-    const total = this.allCards.length;
-    const due = this.dueCards.length;
     const mastered = this.allCards.filter((c) => c.repetition >= 3).length;
-    return { total, due, mastered };
+    return {
+      due: this.dueCards.length,
+      total: this.allCards.length,
+      mastered,
+      dailyTarget: this.dailyCardsCount,
+      dailyDone: this.dailyCompletedCount
+    };
   },
 
   getSavedCardsData() {
     const res = {};
     this.allCards.forEach((c) => {
-      if (c.repetition > 0 || c.interval > 0) {
+      if (c.dueDate) {
         res[c.id] = {
           interval: c.interval,
           repetition: c.repetition,
@@ -178,46 +228,6 @@ const SRSManager = {
       }
     });
     return res;
-  },
-
-  renderCurrentCard() {
-    const card = this.getCurrentCard();
-    const flashcardEl = document.getElementById("srs-flashcard");
-    const counterEl = document.getElementById("srs-card-counter");
-    if (!flashcardEl) return;
-
-    flashcardEl.classList.remove("flipped");
-
-    if (counterEl) {
-      counterEl.textContent = `待複習卡片：${this.dueCards.length} 張`;
-    }
-
-    if (!card) {
-      document.getElementById("srs-front-word").textContent = "🎉";
-      document.getElementById("srs-front-sub").textContent = "太棒了！今日所有卡片已複習完畢！";
-      document.getElementById("srs-back-reading").textContent = "素晴らしい！";
-      document.getElementById("srs-back-meaning").textContent = "明天請繼續保持冒險精神！";
-      document.getElementById("srs-back-example").textContent = "";
-      return;
-    }
-
-    // 正面
-    document.getElementById("srs-front-word").textContent = card.front;
-    document.getElementById("srs-front-sub").textContent = card.subFront;
-
-    // 背面
-    document.getElementById("srs-back-reading").textContent = card.reading;
-    document.getElementById("srs-back-meaning").textContent = card.meaning;
-    document.getElementById("srs-back-example").innerHTML = window.FuriganaEngine ? window.FuriganaEngine.parseToRuby(card.example) : card.example;
-
-    // 自動語音按鈕
-    const speakBtn = document.getElementById("srs-speak-btn");
-    if (speakBtn) {
-      speakBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (window.FuriganaEngine) window.FuriganaEngine.speak(card.front);
-      };
-    }
   }
 };
 

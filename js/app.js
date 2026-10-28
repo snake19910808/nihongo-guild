@@ -41,14 +41,15 @@ const App = {
       }
     }
 
-    // 2. 載入 5 大資料集
+    // 2. 載入 6 大資料集（含魔物生態庫）
     try {
-      const [kanaRes, kanjiRes, vocabRes, grammarRes, schedRes] = await Promise.all([
+      const [kanaRes, kanjiRes, vocabRes, grammarRes, schedRes, monstersRes] = await Promise.all([
         fetch("data/kana.json"),
         fetch("data/kanji.json"),
         fetch("data/vocab.json"),
         fetch("data/grammar.json"),
-        fetch("data/schedule_398days.json")
+        fetch("data/schedule_398days.json"),
+        fetch("data/monsters.json")
       ]);
 
       this.data.kana = await kanaRes.json();
@@ -56,13 +57,26 @@ const App = {
       this.data.vocab = await vocabRes.json();
       this.data.grammar = await grammarRes.json();
       this.data.schedule = await schedRes.json();
-      console.log("✅ 所有課程與題庫資料集載入完成！");
+      this.data.monsters = await monstersRes.json();
+      console.log("✅ 所有課程、題庫與 52 款魔物生態庫載入完成！");
     } catch (e) {
       console.error("載入資料集失敗：", e);
       this.showToast(`資料庫載入異常 (${e.name}: ${e.message})，請確認伺服器連線或重整頁面`, "error");
     }
 
     // 3. 初始化模組
+    if (window.AvatarManager) {
+      window.AvatarManager.init();
+    }
+
+    if (window.SpeechEvaluator) {
+      window.SpeechEvaluator.init();
+    }
+
+    if (window.ListeningReadingModule) {
+      window.ListeningReadingModule.init();
+    }
+
     if (window.FuriganaEngine) {
       window.FuriganaEngine.init(
         this.saveData.progress.furiganaMode || "all",
@@ -71,11 +85,13 @@ const App = {
     }
 
     if (window.SRSManager) {
+      const todaySched = (this.data.schedule || []).find((s) => s.day === this.currentDayIndex);
       window.SRSManager.init(
         this.data.vocab,
         this.data.kanji,
         this.data.kana,
-        this.saveData.srs?.cards || {}
+        this.saveData.srs?.cards || {},
+        todaySched
       );
     }
 
@@ -84,7 +100,8 @@ const App = {
         kana: this.data.kana,
         vocab: this.data.vocab,
         kanji: this.data.kanji,
-        grammar: this.data.grammar
+        grammar: this.data.grammar,
+        monsters: this.data.monsters
       });
     }
 
@@ -150,11 +167,33 @@ const App = {
         const activePane = document.getElementById(targetId);
         if (activePane) activePane.classList.add("active");
 
-        // 若切換到戰鬥分頁，啟動當前戰區魔物
+        // 若切換到戰鬥分頁，啟動當前戰區魔物並重繪畫布
         if (targetId === "tab-battle") {
-          if (window.BattleManager && !window.BattleManager.currentZone) {
-            window.BattleManager.startZone("kana");
+          if (window.BattleManager) {
+            if (!window.BattleManager.currentZone) {
+              window.BattleManager.startZone("kana");
+            } else {
+              window.BattleManager.renderPlayerAvatar();
+            }
           }
+          if (window.BattleFX) {
+            window.BattleFX.resizeCanvas();
+          }
+        }
+
+        // 若切換到大廳，更新角色頭像
+        if (targetId === "tab-hall") {
+          if (window.AvatarManager) {
+            window.AvatarManager.renderAllPreviews();
+          }
+        }
+
+        // 若切換到圖鑑，刷新收集率與卡片
+        if (targetId === "tab-compendium") {
+          this.updateCompendiumStats();
+          const activeTab = document.querySelector(".c-tab.active");
+          const cat = activeTab ? activeTab.getAttribute("data-category") : "all";
+          this.renderCompendium(cat);
         }
 
         // 若切換到 SRS，重新渲染卡片
@@ -566,8 +605,13 @@ const App = {
 
     const statsEl = document.getElementById("srsStatsText");
     const countBadge = document.getElementById("srsDueCountBadge");
-    if (statsEl) statsEl.textContent = `待複習：${stats.due} / 總收錄：${stats.total} (掌握：${stats.mastered})`;
-    if (countBadge) countBadge.textContent = `${stats.due} 張`;
+    if (window.SRSManager.mode === "daily") {
+      if (statsEl) statsEl.textContent = `今日目標：已修煉 ${stats.dailyDone} / ${stats.dailyTarget} 張`;
+      if (countBadge) countBadge.textContent = `${stats.due} 張待背`;
+    } else {
+      if (statsEl) statsEl.textContent = `全庫待背：${stats.due} / 總收錄：${stats.total} (掌握：${stats.mastered})`;
+      if (countBadge) countBadge.textContent = `${stats.due} 張`;
+    }
 
     const flashcardEl = document.getElementById("flashcardElement");
     const frontWord = document.getElementById("cardFrontWord");
@@ -580,8 +624,12 @@ const App = {
     if (flashcardEl) flashcardEl.classList.remove("flipped");
 
     if (!card) {
-      if (frontWord) frontWord.textContent = "🎉 今日複習完成！";
-      if (frontSub) frontSub.textContent = "所有待複習抽認卡皆已完成，詩織為你感到驕傲！";
+      if (frontWord) frontWord.textContent = "🎉 今日修煉大成功！";
+      if (frontSub) frontSub.textContent = window.SRSManager.mode === "daily" 
+        ? "本日 5～15 張核心詞彙已全部複習完成！公會【神殿複習】子委託已打勾！" 
+        : "當前篩選下的卡片已全部複習完成，詩織為你感到驕傲！";
+      if (backWord) backWord.textContent = "🌟 優秀！";
+      if (backReading) backReading.textContent = "明天也一起繼續進步吧！";
       return;
     }
 
@@ -613,6 +661,25 @@ const App = {
         window.SRSManager.gradeCurrentCard(rating);
         this.saveData.srs = { cards: window.SRSManager.getSavedCardsData() };
         this.awardPlayer({ exp: 5, gold: 2 });
+        this.renderSrsCard();
+      };
+    });
+
+    // 模式切換按鈕 (今日課表 vs 全庫自由檢索)
+    const srsModeBtns = document.querySelectorAll(".srs-mode-btn");
+    srsModeBtns.forEach((btn) => {
+      btn.onclick = () => {
+        srsModeBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const mode = btn.dataset.mode;
+        const todaySched = (this.data.schedule || []).find((s) => s.day === this.currentDayIndex);
+        window.SRSManager.setMode(mode, todaySched);
+
+        // 依模式顯隱等級篩選標籤
+        const filterBtns = document.querySelectorAll(".srs-filter-btn");
+        filterBtns.forEach((fb) => {
+          fb.style.display = mode === "all" ? "inline-block" : "none";
+        });
         this.renderSrsCard();
       };
     });
@@ -827,12 +894,65 @@ const App = {
     }
   },
 
+  updateCompendiumStats() {
+    let capturedMonsters = [];
+    try {
+      capturedMonsters = JSON.parse(localStorage.getItem("nihongo_guild_compendium_monsters") || "[]");
+    } catch (e) {}
+
+    const masteredKanji = (this.saveData.progress.masteredKanji || []).length;
+    const masteredVocab = Object.keys(this.saveData.srs?.cards || {}).length;
+
+    const totalMonsters = (this.data.monsters && this.data.monsters.length) || 52;
+    const totalKanji = (this.data.kanji && this.data.kanji.length) || 640;
+    const totalVocab = (this.data.vocab && this.data.vocab.length) || 2963;
+
+    const mPct = Math.round((capturedMonsters.length / totalMonsters) * 100);
+    const kPct = Math.round((masteredKanji / totalKanji) * 100);
+    const vPct = Math.round((masteredVocab / totalVocab) * 100);
+    const totalPct = Math.min(100, Math.round(mPct * 0.4 + kPct * 0.3 + vPct * 0.3));
+
+    const totalEl = document.getElementById("cStatTotalPct");
+    const monEl = document.getElementById("cStatMonsters");
+    const kanEl = document.getElementById("cStatKanji");
+    const vocEl = document.getElementById("cStatVocab");
+
+    if (totalEl) totalEl.textContent = `${totalPct}%`;
+    if (monEl) monEl.textContent = `${capturedMonsters.length} / ${totalMonsters} 隻 (${mPct}%)`;
+    if (kanEl) kanEl.textContent = `${masteredKanji} / ${totalKanji} 字 (${kPct}%)`;
+    if (vocEl) vocEl.textContent = `${masteredVocab} / ${totalVocab} 詞 (${vPct}%)`;
+  },
+
   renderCompendium(category = "all", query = "") {
+    this.updateCompendiumStats();
+
     const deck = document.getElementById("cardsDeckGrid");
     if (!deck) return;
     deck.innerHTML = "";
 
     let items = [];
+
+    // 👾 52 款魔物生態圖鑑 (寶可夢式剪影點亮)
+    if (category === "all" || category === "monsters") {
+      let capturedList = [];
+      try {
+        capturedList = JSON.parse(localStorage.getItem("nihongo_guild_compendium_monsters") || "[]");
+      } catch (e) {}
+
+      (this.data.monsters || []).forEach((m) => {
+        const isCaptured = capturedList.includes(m.id);
+        items.push({
+          type: "monster",
+          id: m.id,
+          title: isCaptured ? `${m.name} (${m.nameJa || ""})` : `??? (未遭遇魔物)`,
+          sub: isCaptured ? `區域：${m.zone.toUpperCase()} ｜ 階級：${m.tier}` : `區域：${m.zone.toUpperCase()} ｜ 階級：???`,
+          desc: isCaptured ? `HP: ${m.hp} ｜ 護盾: 🛡️ ${m.shield} ｜ 弱點：${(m.weaknesses || []).join("、")}` : `尚未在討伐戰鬥中擊敗，弱點未知`,
+          tier: isCaptured ? "tier-3" : "tier-1",
+          isCaptured,
+          raw: m
+        });
+      });
+    }
 
     if (category === "all" || category === "kana") {
       this.data.kana.forEach((k) => {
@@ -853,7 +973,7 @@ const App = {
       // 單字
       this.data.vocab
         .filter((v) => category === "all" || v.level === targetLvl)
-        .slice(0, 150) // 限制渲染數量保持效能
+        .slice(0, 150)
         .forEach((v) => {
           let tier = "tier-1";
           if (v.level === "N4") tier = "tier-2";
@@ -913,20 +1033,66 @@ const App = {
     // 渲染卡片
     items.slice(0, 120).forEach((item) => {
       const card = document.createElement("div");
-      card.className = `compendium-card ${item.tier}`;
-      card.innerHTML = `
-        <div style="font-size:1.2rem;font-weight:bold;color:var(--accent-gold-light);margin-bottom:4px;">${item.title}</div>
-        <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:6px;">${item.sub}</div>
-        <div style="font-size:0.85rem;color:#fff;">${item.desc}</div>
-      `;
-      card.addEventListener("click", () => {
-        if (item.type === "vocab") this.openWordDetail(item.raw.word);
-        else if (item.type === "kanji") this.openKanjiDetail(item.raw.kanji);
-        else if (item.type === "kana") this.openKanaDetail(item.raw);
-        else if (item.type === "grammar") this.openGrammarDetail(item.raw);
-      });
+
+      if (item.type === "monster") {
+        card.className = `compendium-card ${item.isCaptured ? "captured" : "silhouette"}`;
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <img src="${item.raw.sprite || 'assets/monster_slime.jpg'}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid var(--border-gold);" />
+            <div>
+              <div style="font-size:1.05rem;font-weight:bold;color:${item.isCaptured ? 'var(--accent-gold)' : 'var(--text-sub)'};">${item.title}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">${item.sub}</div>
+            </div>
+            ${item.isCaptured ? '<span class="stamp-badge" style="margin-left:auto;">✨ 已收服</span>' : ''}
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-main);">${item.desc}</div>
+        `;
+        card.addEventListener("click", () => {
+          if (item.isCaptured) {
+            this.openMonsterDetail(item.raw);
+          } else {
+            this.showToast("此魔物尚未擊敗收服，請前往討伐戰鬥探索遭遇！", "info");
+          }
+        });
+      } else {
+        card.className = `compendium-card ${item.tier}`;
+        card.innerHTML = `
+          <div style="font-size:1.2rem;font-weight:bold;color:var(--accent-gold-light);margin-bottom:4px;">${item.title}</div>
+          <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:6px;">${item.sub}</div>
+          <div style="font-size:0.85rem;color:#fff;">${item.desc}</div>
+        `;
+        card.addEventListener("click", () => {
+          if (item.type === "vocab") this.openWordDetail(item.raw.word);
+          else if (item.type === "kanji") this.openKanjiDetail(item.raw.kanji);
+          else if (item.type === "kana") this.openKanaDetail(item.raw);
+          else if (item.type === "grammar") this.openGrammarDetail(item.raw);
+        });
+      }
+
       deck.appendChild(card);
     });
+  },
+
+  openMonsterDetail(m) {
+    const content = `
+      <div style="text-align:center;margin-bottom:14px;">
+        <img src="${m.sprite || 'assets/monster_slime.jpg'}" style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid var(--accent-gold);box-shadow:0 0 16px rgba(241,196,15,0.4);" />
+        <h3 style="color:var(--accent-gold);margin-top:10px;">${m.name}</h3>
+        <div style="color:var(--text-sub);font-size:0.95rem;">${m.nameJa || ""}</div>
+        <span class="chap-badge" style="margin-top:6px;display:inline-block;">區域：${m.zone.toUpperCase()} ｜ 階級：${m.tier}</span>
+      </div>
+
+      <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:0.9rem;margin-bottom:14px;">
+        <div><strong>❤️ 生命力 (HP)：</strong>${m.hp}</div>
+        <div style="margin-top:4px;"><strong>🛡️ 破防盾牌層數：</strong>${m.shield} 層</div>
+        <div style="margin-top:4px;"><strong>⚔️ 弱點類型：</strong>${(m.weaknesses || []).join("、")}</div>
+        <div style="margin-top:4px;"><strong>🎁 討伐獎勵：</strong>+${m.exp || 30} EXP、+${m.gold || 20} G</div>
+      </div>
+      <div style="text-align:right;">
+        <button class="btn-talk" onclick="window.App.closeModal()">確認</button>
+      </div>
+    `;
+    this.openModal(content);
   },
 
   /**

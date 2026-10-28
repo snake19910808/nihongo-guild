@@ -1,5 +1,5 @@
 // Service Worker for Nihongo Guild PWA
-const CACHE_NAME = "nihongo-guild-v10";
+const CACHE_NAME = "nihongo-guild-v20";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,11 @@ const STATIC_ASSETS = [
   "./css/style.css",
   "./js/app.js",
   "./js/furigana.js",
+  "./js/avatar.js",
+  "./js/battle_fx.js",
+  "./js/speech_eval.js",
+  "./js/handwriting.js",
+  "./js/listening_reading.js",
   "./js/battle.js",
   "./js/srs.js",
   "./js/shiori_ai.js",
@@ -25,7 +30,8 @@ const STATIC_ASSETS = [
   "./data/kanji.json",
   "./data/vocab.json",
   "./data/grammar.json",
-  "./data/schedule_398days.json"
+  "./data/schedule_398days.json",
+  "./data/monsters.json"
 ];
 
 self.addEventListener("install", (event) => {

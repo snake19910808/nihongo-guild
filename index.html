@@ -121,6 +121,19 @@
           <div class="shiori-actions">
             <button class="btn-talk" id="hallTalkBtn" title="隨機換一句問候並用語音朗讀">🌸 聽詩織打氣 (語音)</button>
             <button class="btn-chat-counter" id="hallGoChatBtn" title="前往專屬櫃台與詩織打字對話、批改造句">☕ 前往櫃台聊天</button>
+            <button class="icon-btn" id="openQuestLetterBtn" style="margin-top:6px;width:100%;padding:8px;font-size:0.85rem;background:rgba(241,196,15,0.12);border-color:var(--accent-gold);">📜 村民委託信短文閱讀</button>
+          </div>
+
+          <!-- 冒險者名片（可點擊自訂角色紙娃娃） -->
+          <div class="player-hall-badge" id="hallAvatarCard" title="點擊開啟冒險者更衣室，自訂髮型、髮色、眼睛、職業服裝！" style="margin-top:14px;">
+            <canvas id="hallPlayerCanvas" width="56" height="56" style="border-radius:8px;background:#171124;"></canvas>
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span id="hallPlayerName" style="font-weight:bold;color:var(--accent-gold);font-size:0.95rem;">旅人アルス</span>
+                <span style="font-size:0.75rem;color:var(--accent-cyan);">更衣室 ➔</span>
+              </div>
+              <div id="hallPlayerRole" style="font-size:0.78rem;color:var(--text-sub);margin-top:2px;">歧路旅人・冒險者公會成員</div>
+            </div>
           </div>
         </div>
 
@@ -162,7 +175,7 @@
       </div>
     </section>
 
-    <!-- 2. 討伐戰鬥 (Battle Arena) -->
+    <!-- 2. 討伐戰鬥 (《歧路旅人》HD-2D 橫向戰鬥舞台) -->
     <section class="tab-pane" id="tab-battle">
       <div class="battle-arena">
         
@@ -174,20 +187,54 @@
           <button class="map-btn" data-zone="n3">🌋 N3 魔王神殿</button>
         </div>
 
+        <!-- 頂部行動順序軸 (Octopath Traveler Timeline) -->
+        <div class="battle-timeline" id="battleTimeline">
+          <!-- 動態注入回合行動軸標記 -->
+        </div>
+
         <div class="battle-stage">
           
-          <!-- 魔物區域 -->
-          <div class="enemy-area">
-            <img src="assets/monster_slime.jpg" alt="魔物立繪" class="monster-sprite" id="monsterSprite">
-            <div class="monster-name" id="monsterName">草史萊姆 (Slime Lv.1)</div>
-            
-            <div class="hp-bar-outer">
-              <div class="hp-bar-inner" id="monsterHpInner" style="width: 100%;"></div>
+          <!-- 橫向戰鬥對峙舞台 (敵方在左、特效在中、玩家在右) -->
+          <div class="combat-horizontal-stage">
+            <!-- 特效與飄字畫布層 -->
+            <canvas id="battleFxCanvas" class="battle-fx-canvas" width="600" height="260"></canvas>
+
+            <!-- 左側：魔物陣營 -->
+            <div class="enemy-combat-box" id="enemyCombatBox">
+              <div style="position:relative;">
+                <img src="assets/monster_slime.jpg" alt="魔物立繪" class="monster-sprite" id="monsterSprite" style="width:140px;height:140px;">
+                <span class="chap-badge" id="monsterTierBadge" style="position:absolute;top:-4px;right:-4px;font-size:0.75rem;">🐺 普通魔物</span>
+              </div>
+              <div class="monster-name" id="monsterName" style="font-size:1.05rem;margin-top:6px;">草史萊姆 (Slime Lv.1)</div>
+              
+              <div class="hp-bar-outer" style="width:140px;margin:4px 0;">
+                <div class="hp-bar-inner" id="monsterHpInner" style="width: 100%;"></div>
+              </div>
+              <div id="monsterHpText" style="font-size:0.8rem;color:var(--text-sub);">HP: 120 / 120</div>
+
+              <!-- 弱點與護盾槽 -->
+              <div class="weakness-slots-wrap" id="monsterWeaknessWrap">
+                <!-- 動態注入弱點方塊與護盾 -->
+              </div>
             </div>
-            <div id="monsterHpText" style="font-size:0.8rem;color:var(--text-sub);">HP: 100 / 100</div>
+
+            <!-- 右側：我方玩家陣營 (像素精靈紙娃娃) -->
+            <div class="player-combat-box" id="playerCombatBox">
+              <canvas id="battlePlayerCanvas" width="120" height="120"></canvas>
+              <div id="battlePlayerName" style="font-weight:bold;color:var(--accent-gold);font-size:1.05rem;margin-top:6px;">旅人アルス</div>
+              
+              <div class="hp-bar-outer" style="width:140px;margin:4px 0;">
+                <div class="hp-bar-inner" id="playerHpInner" style="width: 100%;background:linear-gradient(90deg,#2ecc71,#27ae60);"></div>
+              </div>
+              <div id="playerHpText" style="font-size:0.8rem;color:var(--text-sub);">HP: 100 / 100</div>
+
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <span class="small-tag" style="background:#2980b922;color:#3498db;border-color:#2980b9;font-size:0.75rem;">🛡️ 我方回合</span>
+              </div>
+            </div>
           </div>
 
-          <!-- 題目面板 -->
+          <!-- 題目操作面板 -->
           <div class="quiz-panel">
             <div class="quiz-prompt" id="quizPrompt">
               <span>題目載入中...</span>
@@ -214,11 +261,12 @@
         
         <div class="srs-controls-header">
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="map-btn srs-filter-btn active" data-filter="ALL">全部</button>
-            <button class="map-btn srs-filter-btn" data-filter="N5">N5</button>
-            <button class="map-btn srs-filter-btn" data-filter="N4">N4</button>
-            <button class="map-btn srs-filter-btn" data-filter="N3">N3</button>
-            <button class="map-btn srs-filter-btn" data-filter="KANJI">漢字</button>
+            <button class="map-btn srs-mode-btn active" data-mode="daily">📅 今日課表修煉 (5~15張)</button>
+            <button class="map-btn srs-mode-btn" data-mode="all">📚 全庫自主檢索</button>
+            <button class="map-btn srs-filter-btn" data-filter="N5" style="display:none;">N5</button>
+            <button class="map-btn srs-filter-btn" data-filter="N4" style="display:none;">N4</button>
+            <button class="map-btn srs-filter-btn" data-filter="N3" style="display:none;">N3</button>
+            <button class="map-btn srs-filter-btn" data-filter="KANJI" style="display:none;">漢字</button>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="chap-badge" id="srsDueCountBadge">0 張</span>
@@ -308,10 +356,19 @@
       </div>
     </section>
 
-    <!-- 5. 冒險圖鑑 (Compendium) -->
+    <!-- 5. 冒險圖鑑 (Compendium - 寶可夢式點亮收集) -->
     <section class="tab-pane" id="tab-compendium">
+      <!-- 圖鑑成就收集進度條 -->
+      <div class="compendium-stats-bar" id="compendiumStatsBar">
+        <div>🏆 冒險總收集率：<strong id="cStatTotalPct" style="color:var(--accent-gold);">0%</strong></div>
+        <div>👾 魔物圖鑑：<strong id="cStatMonsters" style="color:var(--accent-cyan);">0 / 52 隻 (0%)</strong></div>
+        <div>🀄 常用漢字：<strong id="cStatKanji" style="color:#2ecc71;">0 / 640 字 (0%)</strong></div>
+        <div>📘 核心單字：<strong id="cStatVocab" style="color:#9b59b6;">0 / 2,963 詞 (0%)</strong></div>
+      </div>
+
       <div class="compendium-tabs">
         <button class="c-tab active" data-category="all">全部收錄</button>
+        <button class="c-tab" data-category="monsters">👾 52款魔物生態</button>
         <button class="c-tab" data-category="kana">五十音</button>
         <button class="c-tab" data-category="n5">N5 寶庫</button>
         <button class="c-tab" data-category="n4">N4 進階</button>
@@ -319,7 +376,7 @@
       </div>
 
       <div class="compendium-search-bar">
-        <input type="text" id="compendiumSearch" class="chat-input" placeholder="🔍 搜尋單字、假名讀音、漢字或中文意義...">
+        <input type="text" id="compendiumSearch" class="chat-input" placeholder="🔍 搜尋魔物弱點、單字、假名讀音、漢字或中文意義...">
       </div>
 
       <div class="cards-deck-grid" id="cardsDeckGrid">
@@ -331,6 +388,15 @@
     <section class="tab-pane" id="tab-settings">
       <div style="max-width:680px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border-gold);border-radius:var(--radius-md);padding:24px;">
         <h2 style="color:var(--accent-gold-light);margin-bottom:18px;">⚙️ 系統設定與存檔雲端同步</h2>
+
+        <!-- 冒險者紙娃娃設定 -->
+        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border-gold);border-radius:8px;padding:14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-weight:bold;color:var(--accent-gold);font-size:1.05rem;">🛡️ 冒險者更衣室（角色外觀與紙娃娃自訂）</div>
+            <div style="font-size:0.85rem;color:var(--text-sub);margin-top:2px;">隨時調整姓名、性別、4種髮型、髮色、眼睛、膚色與《歧路旅人》四大職系裝備！</div>
+          </div>
+          <button class="btn-talk" id="openAvatarCreatorBtn" style="padding:8px 16px;">🎨 開啟更衣室</button>
+        </div>
 
         <!-- Gemini API Key -->
         <div style="margin-bottom:20px;">
@@ -421,12 +487,17 @@
   </div>
 
   <!-- JavaScript 核心腳本 -->
-  <script src="js/furigana.js?v=10"></script>
-  <script src="js/sync.js?v=10"></script>
-  <script src="js/srs.js?v=10"></script>
-  <script src="js/battle.js?v=10"></script>
-  <script src="js/shiori_ai.js?v=10"></script>
-  <script src="js/app.js?v=10"></script>
+  <script src="js/furigana.js?v=20"></script>
+  <script src="js/sync.js?v=20"></script>
+  <script src="js/avatar.js?v=20"></script>
+  <script src="js/battle_fx.js?v=20"></script>
+  <script src="js/speech_eval.js?v=20"></script>
+  <script src="js/handwriting.js?v=20"></script>
+  <script src="js/listening_reading.js?v=20"></script>
+  <script src="js/srs.js?v=20"></script>
+  <script src="js/battle.js?v=20"></script>
+  <script src="js/shiori_ai.js?v=20"></script>
+  <script src="js/app.js?v=20"></script>
 
 </body>
 </html>
