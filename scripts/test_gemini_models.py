@@ -1,8 +1,16 @@
 import os
+import sys
 import json
 import urllib.request
 import urllib.error
 import time
+
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 def load_env():
     env_path = os.path.join(os.path.dirname(__file__), "..", ".env")

@@ -81,22 +81,39 @@ const ShioriAI = {
   ],
 
   /**
-   * 與詩織發送訊息
+   * 與詩織發送訊息 (具備高可用自動故障轉移 Failover 機制)
    */
-  async sendMessage(userMessage, apiKey, modelName = "gemini-2.5-flash") {
+  async sendMessage(userMessage, apiKey, modelName = "gemini-3.5-flash-lite") {
     // 檢查是否有 API Key
     if (!apiKey || apiKey.trim() === "") {
       return this.generateOfflineReply(userMessage);
     }
 
-    try {
-      return await this.callGeminiApi(userMessage, apiKey.trim(), modelName);
-    } catch (err) {
-      console.warn("Gemini API 連線失敗，切換至離線劇本回覆：", err);
-      const fallback = this.generateOfflineReply(userMessage);
-      fallback.zh += `\n\n*(提示：Gemini 連線暫時異常【${err.message.slice(0, 50)}】，詩織已切換為貼心離線模式囉！)*`;
-      return fallback;
+    // 依序候補：gemini-3.5-flash-lite (500次/天) -> gemini-3.1-flash-lite (500次/天) -> gemma-4-26b-a4b-it (14.4K次/天)
+    const fallbackChain = [
+      modelName || "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemma-4-26b-a4b-it"
+    ];
+    const uniqueModels = [...new Set(fallbackChain)];
+
+    let lastError = null;
+    for (const model of uniqueModels) {
+      try {
+        console.log(`🌸 詩織正在連線模型：${model}...`);
+        const result = await this.callGeminiApi(userMessage, apiKey.trim(), model);
+        result.activeModel = model;
+        return result;
+      } catch (err) {
+        lastError = err;
+        console.warn(`模型 ${model} 呼叫暫時受限，自動切換候補模型：`, err);
+      }
     }
+
+    console.warn("所有線上模型皆暫時繁忙，啟動離線劇本：", lastError);
+    const fallback = this.generateOfflineReply(userMessage);
+    fallback.zh += `\n\n*(提示：Gemini 線上連線目前繁忙，詩織已啟動 100% 離線導師陪伴模式！)*`;
+    return fallback;
   },
 
   /**

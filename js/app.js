@@ -23,6 +23,24 @@ const App = {
     this.saveData = window.SyncManager.loadLocalSave();
     this.currentDayIndex = this.saveData.progress.currentDay || 1;
 
+    // 自動嘗試向本地伺服器讀取 .env 中的 API Key (本機啟動時自動免手動填入)
+    if (!this.settings.geminiApiKey) {
+      try {
+        const envRes = await fetch("/api/env-config");
+        if (envRes.ok) {
+          const envData = await envRes.json();
+          if (envData.geminiApiKey) {
+            this.settings.geminiApiKey = envData.geminiApiKey;
+            this.settings.geminiModel = this.settings.geminiModel || "gemini-3.5-flash-lite";
+            window.SyncManager.saveSettings(this.settings);
+            console.log("🔑 已自本地 .env 自動載入 GEMINI_API_KEY！");
+          }
+        }
+      } catch (e) {
+        // 在 GitHub Pages 靜態環境上屬正常行為
+      }
+    }
+
     // 2. 載入 5 大資料集
     try {
       const [kanaRes, kanjiRes, vocabRes, grammarRes, schedRes] = await Promise.all([
@@ -612,11 +630,12 @@ const App = {
   },
 
   /**
-   * 詩織櫃台對話介面 (AI Tutor & Chat)
+   * 詩織櫃台對話介面 (AI Tutor & Chat - 具備雙向語音交流能力)
    */
   bindChatEvents() {
     const inputEl = document.getElementById("shioriChatInput");
     const sendBtn = document.getElementById("shioriSendBtn");
+    const micBtn = document.getElementById("shioriMicBtn");
     const openGraderBtn = document.getElementById("openWritingGraderBtn");
 
     const doSend = async () => {
@@ -630,13 +649,18 @@ const App = {
       const tempId = this.appendChatMessage("shiori", "詩織正在為你思考中，請稍候片刻……");
 
       const apiKey = this.settings.geminiApiKey;
-      const model = this.settings.geminiModel || "gemini-2.5-flash";
+      const model = this.settings.geminiModel || "gemini-3.5-flash-lite";
 
       const res = await window.ShioriAI.sendMessage(text, apiKey, model);
 
-      // 更新訊息內容與立繪
-      this.updateChatMessage(tempId, res.formattedHtml || res.rawText);
+      // 更新訊息內容與立繪，並掛載語音播放按鈕
+      this.updateChatMessage(tempId, res.formattedHtml || res.rawText, res.rawText);
       window.ShioriAI.updatePortrait(res.mood || "normal");
+
+      // 自動朗讀回覆（語音對話教學模式）
+      if (window.FuriganaEngine) {
+        window.FuriganaEngine.speak(res.rawText);
+      }
 
       // 增加好感度
       this.awardPlayer({ exp: 8, affection: 1 });
@@ -647,6 +671,45 @@ const App = {
       inputEl.addEventListener("keypress", (e) => {
         if (e.key === "Enter") doSend();
       });
+    }
+
+    // 語音輸入 (麥克風)
+    if (micBtn) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = "ja-JP";
+        recognition.interimResults = false;
+        recognition.onstart = () => {
+          micBtn.classList.add("recording");
+          this.showToast("🎙️ 正在聆聽您的發音/語音...", "info");
+        };
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          if (inputEl) {
+            inputEl.value = transcript;
+            doSend();
+          }
+        };
+        recognition.onend = () => {
+          micBtn.classList.remove("recording");
+        };
+        recognition.onerror = (err) => {
+          micBtn.classList.remove("recording");
+          console.warn("語音輸入異常：", err);
+        };
+        micBtn.addEventListener("click", () => {
+          try {
+            recognition.start();
+          } catch (e) {
+            recognition.stop();
+          }
+        });
+      } else {
+        micBtn.addEventListener("click", () => {
+          this.showToast("您的瀏覽器未支援語音辨識（建議使用 Chrome / Edge）", "warning");
+        });
+      }
     }
 
     if (openGraderBtn) {
@@ -669,10 +732,21 @@ const App = {
     return id;
   },
 
-  updateChatMessage(id, newHtml) {
+  updateChatMessage(id, newHtml, rawText = "") {
     const el = document.getElementById(id);
     if (el) {
-      el.innerHTML = newHtml;
+      el.innerHTML = `
+        <div class="msg-content">${newHtml}</div>
+        <div class="msg-actions" style="margin-top:6px;display:flex;justify-content:flex-end;">
+          <button class="msg-speak-btn" style="background:transparent;border:1px solid var(--border-gold);color:var(--accent-gold);border-radius:12px;font-size:0.75rem;padding:2px 8px;cursor:pointer;">🔊 朗讀語音</button>
+        </div>
+      `;
+      const speakBtn = el.querySelector(".msg-speak-btn");
+      if (speakBtn && window.FuriganaEngine) {
+        speakBtn.addEventListener("click", () => {
+          window.FuriganaEngine.speak(rawText || el.textContent);
+        });
+      }
       const chatContainer = document.getElementById("shioriChatMessages");
       if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
     }

@@ -17,6 +17,24 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   let reqPath = decodeURI(req.url.split('?')[0]);
+
+  // 本地端讀取 .env 設定 API
+  if (reqPath === '/api/env-config') {
+    let key = "";
+    const envFile = path.join(__dirname, '.env');
+    if (fs.existsSync(envFile)) {
+      const content = fs.readFileSync(envFile, 'utf-8');
+      for (const line of content.split('\n')) {
+        if (line.trim().startsWith('GEMINI_API_KEY=')) {
+          key = line.trim().split('=', 2)[1].trim();
+        }
+      }
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ geminiApiKey: key }));
+    return;
+  }
+
   if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
   
   const filePath = path.join(__dirname, reqPath);
