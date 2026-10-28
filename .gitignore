@@ -1,0 +1,20 @@
+# 版權教材與影音資料（嚴禁上傳至 GitHub）
+大家學標準日本語_初級本/
+大家的日本語_初級I/
+*.mp4
+*.avi
+*.mkv
+
+# 環境設定與敏感金鑰
+.env
+*.key
+*.pem
+token.txt
+
+# 系統與相依套件快取
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+__pycache__/
+.pytest_cache/
