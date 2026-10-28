@@ -44,6 +44,10 @@ const FuriganaEngine = {
     });
   },
 
+  render(text) {
+    return this.parseToRuby(text);
+  },
+
   /**
    * 使用 Web Speech API 朗讀日語發音
    */

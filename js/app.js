@@ -41,7 +41,7 @@ const App = {
       console.log("✅ 所有課程與題庫資料集載入完成！");
     } catch (e) {
       console.error("載入資料集失敗：", e);
-      this.showToast("資料庫載入異常，請確認伺服器連線或重整頁面", "error");
+      this.showToast(`資料庫載入異常 (${e.name}: ${e.message})，請確認伺服器連線或重整頁面`, "error");
     }
 
     // 3. 初始化模組
@@ -106,6 +106,17 @@ const App = {
   },
 
   /**
+   * 切換分頁 (提供程式化呼叫)
+   */
+  switchTab(tabId) {
+    const fullId = tabId.startsWith("tab-") ? tabId : "tab-" + tabId;
+    const tabBtn = document.querySelector(`.nav-tab[data-tab="${fullId}"]`);
+    if (tabBtn) {
+      tabBtn.click();
+    }
+  },
+
+  /**
    * 導覽分頁切換
    */
   bindNavigation() {
@@ -120,6 +131,13 @@ const App = {
         panes.forEach((p) => p.classList.remove("active"));
         const activePane = document.getElementById(targetId);
         if (activePane) activePane.classList.add("active");
+
+        // 若切換到戰鬥分頁，啟動當前戰區魔物
+        if (targetId === "tab-battle") {
+          if (window.BattleManager && !window.BattleManager.currentZone) {
+            window.BattleManager.startZone("kana");
+          }
+        }
 
         // 若切換到 SRS，重新渲染卡片
         if (targetId === "tab-srs") {
@@ -296,7 +314,8 @@ const App = {
    * 渲染指定天數的委託課表
    */
   renderTodayQuest(dayNum) {
-    const sched = this.data.schedule.find((s) => s.day === dayNum);
+    const targetDay = parseInt(dayNum) || 1;
+    const sched = this.data.schedule.find((s) => parseInt(s.day) === targetDay) || this.data.schedule[0];
     if (!sched) return;
 
     // 標題與標籤
@@ -306,7 +325,7 @@ const App = {
     const dateText = document.getElementById("questDateText");
 
     if (dayBadge) dayBadge.textContent = `Day ${sched.day} / 399`;
-    if (chapBadge) chapBadge.textContent = `${sched.stage}・${sched.chapter}`;
+    if (chapBadge) chapBadge.textContent = sched.chapterName || `第 ${sched.week} 週`;
     if (questTitle) questTitle.textContent = sched.title;
     if (dateText) dateText.textContent = `${sched.date} (${sched.weekday})`;
 
@@ -314,13 +333,17 @@ const App = {
     const tbBox = document.getElementById("textbookGuideBox");
     if (tbBox) {
       let tbHtml = `
-        <div class="tb-line"><strong>📖 核心教材：</strong>${sched.textbookLesson || "五十音基礎指引 / 實力模擬"}</div>
-        <div class="tb-line"><strong>🎯 本日目標：</strong>${sched.coreGoal || "穩固日語各階段實力"}</div>
+        <div class="tb-line"><strong>📖 核心教材：</strong>${sched.textbookPrimary || "五十音基礎指引 / 實力模擬"}</div>
+        <div class="tb-line"><strong>🎯 配套資源：</strong>${sched.textbookSecondary || "出口仁老師文法講解與練習"}</div>
       `;
-      if (sched.videoLesson) {
+      // 偵測是否有對應影片
+      const matchLesson = (sched.textbookPrimary + " " + (sched.textbookSecondary || "")).match(/第\s*(\d+)\s*課/);
+      const lessonNum = matchLesson ? matchLesson[1] : null;
+
+      if (lessonNum) {
         tbHtml += `
           <div class="tb-line" style="margin-top:6px;">
-            <strong>🎬 推薦教學影片：</strong>出口仁老師《大家學標準日本語》第 ${sched.videoLesson} 課
+            <strong>🎬 推薦教學影片：</strong>出口仁老師《大家學標準日本語》第 ${lessonNum} 課
             <button class="task-action-btn" id="openVideoHintBtn" style="margin-left:8px;">觀看本機影片說明</button>
           </div>
         `;
@@ -328,8 +351,8 @@ const App = {
       tbBox.innerHTML = tbHtml;
 
       const vBtn = document.getElementById("openVideoHintBtn");
-      if (vBtn) {
-        vBtn.addEventListener("click", () => this.showVideoHelpModal(sched.videoLesson));
+      if (vBtn && lessonNum) {
+        vBtn.addEventListener("click", () => this.showVideoHelpModal(lessonNum));
       }
     }
 
@@ -338,8 +361,9 @@ const App = {
     if (taskList) {
       taskList.innerHTML = "";
       const dayTasks = this.saveData.progress.completedTasks[`day_${dayNum}`] || [];
+      const quests = sched.dailyQuests || sched.tasks || [];
 
-      sched.tasks.forEach((t) => {
+      quests.forEach((t) => {
         const isCompleted = dayTasks.includes(t.id);
         const item = document.createElement("div");
         item.className = `task-item ${isCompleted ? "completed" : ""}`;
@@ -348,16 +372,16 @@ const App = {
             <div class="task-check">${isCompleted ? "✓" : ""}</div>
             <div>
               <div class="task-name">${t.name}</div>
-              <div style="font-size:0.8rem;color:var(--text-sub);">${t.detail || ""}</div>
+              <div style="font-size:0.8rem;color:var(--text-sub);">${t.desc || t.detail || ""}</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
-            <span class="task-time">${t.duration}</span>
+            <span class="task-time">${t.minutes || 20} 分鐘</span>
             <button class="task-action-btn">${isCompleted ? "已完成" : "打勾完成"}</button>
           </div>
         `;
 
-        item.addEventListener("click", () => this.toggleTaskCompletion(dayNum, t.id, t.duration));
+        item.addEventListener("click", () => this.toggleTaskCompletion(dayNum, t.id, t.minutes || 20));
         taskList.appendChild(item);
       });
     }
@@ -369,7 +393,7 @@ const App = {
   /**
    * 任務勾選與獎勵計算
    */
-  toggleTaskCompletion(dayNum, taskId, durationStr) {
+  toggleTaskCompletion(dayNum, taskId, minutes = 20) {
     const key = `day_${dayNum}`;
     if (!this.saveData.progress.completedTasks[key]) {
       this.saveData.progress.completedTasks[key] = [];
@@ -380,7 +404,6 @@ const App = {
     if (idx === -1) {
       list.push(taskId);
       // 依任務時長給予 EXP 與金幣
-      const minutes = parseInt(durationStr) || 20;
       const gainExp = Math.round(minutes * 0.8);
       const gainGold = Math.round(minutes * 0.5);
       this.awardPlayer({ exp: gainExp, gold: gainGold, affection: 1 });
@@ -401,8 +424,8 @@ const App = {
     if (!chipsContainer) return;
     chipsContainer.innerHTML = "";
 
-    const vocabList = sched.vocabList || [];
-    const kanjiList = sched.kanjiList || [];
+    const vocabList = sched.assignedVocab || sched.vocabList || [];
+    const kanjiList = sched.assignedKanji || sched.kanjiList || [];
 
     if (vocabList.length === 0 && kanjiList.length === 0) {
       chipsContainer.innerHTML = `<span style="font-size:0.85rem;color:var(--text-muted);">本日為複習與實戰週，無新增獨立單字。</span>`;

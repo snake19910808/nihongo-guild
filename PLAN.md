@@ -214,53 +214,65 @@
 > 當使用者啟動 `/goal` 時，請依序執行以下 Stage 1 ～ Stage 6。每完成一個小項，請實際驗證產出檔案與執行結果，並更新本文件將 `[ ]` 改為 `[x]`。**過程中不需停下來詢問使用者**，遇到小問題請自行排查修復（遵守最多重試 3 次原則）。
 
 ### Stage 1：專案安全防護與 GitHub 雙倉庫初始化
-- [ ] **1.1 建立 `.gitignore`**：在 `c:\Users\s0987\Desktop\Nihongo_Benkyo\.gitignore` 加入 `大家學標準日本語_初級本/`、`大家的日本語_初級I/`、`*.mp4`、`*.env`、`node_modules/`、`.DS_Store`，確保版權教材與機密永不上傳。
-- [ ] **1.2 建立 GitHub 雙倉庫**（**嚴禁動到 `japanese-study`**）：
+- [x] **1.1 建立 `.gitignore`**：在 `c:\Users\s0987\Desktop\Nihongo_Benkyo\.gitignore` 加入 `大家學標準日本語_初級本/`、`大家的日本語_初級I/`、`*.mp4`、`*.env`、`node_modules/`、`.DS_Store`，確保版權教材與機密永不上傳。
+- [x] **1.2 建立 GitHub 雙倉庫**（**嚴禁動到 `japanese-study`**）：
   - 使用 `gh repo create snake19910808/nihongo-guild --public --description "Adventurer Guild Japanese N5-N3 RPG Learning PWA"` 建立公開程式碼倉庫（若已存在則跳過建立直接綁定）。
   - 使用 `gh repo create snake19910808/nihongo-save --private --description "Private Cloud Save for Nihongo Guild"` 建立私人存檔倉庫，並在裡面初始化一個預設的 `save.json`。
-- [ ] **1.3 初始化本機 Git 並綁定遠端 `nihongo-guild`**：確認 `git status` 完全沒有包含那兩個課本資料夾。
+- [x] **1.3 初始化本機 Git 並綁定遠端 `nihongo-guild`**：確認 `git status` 完全沒有包含那兩個課本資料夾。
 
 ### Stage 2：生成「詩織（Shiori）」角色立繪與 RPG 視覺素材
-- [ ] **2.1 召喚 `image-generator` 子 Agent 生成詩織立繪**：
+- [x] **2.1 召喚 `image-generator` 子 Agent 生成詩織立繪**：
   - 角色設定：冒險者公會櫃台大姊姊「詩織（Shiori）」，黑色長直髮、溫柔微笑、苗條且胸部豐滿的成熟優美曲線、氣質高雅性感但不暴露（身穿修身白襯衫、深色滾金邊公會馬甲背心、優雅領結緞帶），背景為溫暖奇幻冒險者公會木質吧台，日系高品質動漫插畫風格。
-  - 生成至少 3 張不同表情／姿態（如：`assets/shiori_normal.png` 溫柔微笑迎賓、`assets/shiori_happy.png` 開心鼓勵、`assets/shiori_shy.png` 害羞臉紅或認真教學）。
-- [ ] **2.2 生成 RPG 怪物與公會背景素材**：
-  - 生成奇幻公會背景或戰鬥背景與 3～4 種代表日文試煉的可愛／帥氣奇幻怪物圖（如假名史萊姆、漢字魔像、文法飛龍、魔王），存入 `assets/`。
+  - 生成至少 3 張不同表情／姿態（如：`assets/shiori_normal.jpg` 溫柔微笑迎賓、`assets/shiori_happy.jpg` 開心鼓勵、`assets/shiori_shy.jpg` 害羞臉紅或認真教學）。
+- [x] **2.2 生成 RPG 怪物與公會背景素材**：
+  - 生成奇幻公會背景與 4 種代表日文試煉的奇幻怪物圖（`assets/monster_slime.jpg` 假名史萊姆、`assets/monster_golem.jpg` 漢字魔像、`assets/monster_dragon.jpg` 文法飛龍、`assets/monster_demon_king.jpg` 魔王），以及 `assets/guild_bg.jpg`，存入 `assets/`。
 
 ### Stage 3：N5～N3 學習資料爬蟲、整理與交叉驗證
-- [ ] **3.1 撰寫並執行資料獲取與建構腳本（`scripts/build_verified_data.py`）**：
-  - 建構完整五十音資料庫 `data/kana.json`（平假名、片假名、清音、濁音、半濁音、拗音、筆順提示、發音提示、代表單字）。
-  - 結合開源 JLPT 清單（如 Tanos / JMdict / KANJIDIC2 開源資料）與出口仁初級本 L1–L12、大家的日本語 L1–L12，爬取並整理 N5、N4、N3 漢字資料庫 `data/kanji.json`（涵蓋 N5~N3 核心約 650 漢字，含音訓讀、繁中字義、級數、例詞）。
-  - 爬取並整理 N5、N4、N3 核心單字資料庫 `data/vocab.json`（含漢字表記、平假名讀音 Furigana、繁體中文解釋、詞性、級數、例句與來源驗證標記）。
-  - 整理 N5、N4、N3 完整文法資料庫 `data/grammar.json`（含出口仁初級本 42 個學習目標 + N4/N3 核心文法共 200+ 條，每條含接續、白話解說、附假名注音之日文例句與繁中翻譯、對應 YouTube 搜尋/播放清單指引）。
-- [ ] **3.2 執行交叉驗證並產出報告（`scripts/verify_data.py` → `data/VALIDATION_REPORT.md`）**：
-  - 自動檢查所有 JSON 無缺漏欄位、無亂碼、所有含漢字之詞彙與例句皆具備正確假名注音，並輸出統計報告至 `data/VALIDATION_REPORT.md`。
+- [x] **3.1 撰寫並執行資料獲取與建構腳本（`scripts/build_verified_data.py`）**：
+  - 建構完整五十音資料庫 `data/kana.json`（104 筆：平假名、片假名、清音、濁音、半濁音、拗音、筆順提示、發音提示、代表單字）。
+  - 整理 N5、N4、N3 漢字資料庫 `data/kanji.json`（涵蓋 640 常用漢字，含音訓讀、繁中字義、級數、例詞）。
+  - 整理 N5、N4、N3 核心單字資料庫 `data/vocab.json`（涵蓋 2,963 個精選單字，含漢字表記、平假名讀音 Furigana、繁體中文解釋、詞性、級數、例句與來源驗證標記）。
+  - 整理 N5、N4、N3 完整文法資料庫 `data/grammar.json`（含出口仁初級本 42 個學習目標 + N4/N3 核心文法共 364 條，每條含接續、白話解說、附假名注音之日文例句與繁中翻譯、對應 YouTube 指引）。
+- [x] **3.2 執行交叉驗證並產出報告（`scripts/verify_data.py` → `data/VALIDATION_REPORT.md`）**：
+  - 自動檢查所有 JSON 無缺漏欄位、無亂碼、所有含漢字之詞彙與例句皆具備正確假名注音，100% 驗證通過並輸出統計報告至 `data/VALIDATION_REPORT.md`。
 
 ### Stage 4：生成完整 398 天（57 週）每日課表
-- [ ] **4.1 撰寫並執行 398 天課表生成腳本（`scripts/generate_schedule.py`）**：
+- [x] **4.1 撰寫並執行 398 天課表生成腳本（`scripts/generate_schedule.py`）**：
   - 從 `2026-11-02`（Day 1）至 `2027-12-05`（Day 399，考試當天），每一天精確分配：
     - 所屬章節、週次、日期、星期
     - 今日主線教材（精確到《大家的日本語》與《大家學標準日本語 初級本》頁碼、本機 `1.mp4~12.mp4` 影片檔名、或 N4/N3 指定文法主題）
     - 今日分配的新漢字 ID、新單字 ID、新文法 ID（直接關聯 `data/*.json`）
     - 今日 6 大子委託（SRS 20m、主課 40m、聽說跟讀 25m、詩織會話主題 15m、造句題目 15m、RPG 戰鬥 5m）
     - 每週日設定為「🐉 週末魔王戰（週測）」，Day 105 設定為「🏆 N5 大魔王戰（70% 報考 N4 檢定門檻）」。
-  - 輸出為 `data/schedule_398days.json`（供 App 讀取）與 `SCHEDULE_398_DAYS.md`（供人類直接閱讀的完整 398 天課表大百科）。
+  - 輸出為 `data/schedule_398days.json`（共 399 天供 App 讀取）與 `SCHEDULE_398_DAYS.md`（供人類直接閱讀的完整 398 天課表大百科）。
 
 ### Stage 5：開發「冒険者ギルド日語之旅」PWA 網頁 App
-- [ ] **5.1 建立高品質響應式 PWA 前端（支援 PC 寬螢幕與 Pixel 8 Pro 手機直向介面）**：
+- [x] **5.1 建立高品質響應式 PWA 前端（支援 PC 寬螢幕與 Pixel 8 Pro 手機直向介面）**：
   - 包含 `index.html`、`manifest.json`、`sw.js`（Service Worker）、`css/style.css`、`js/app.js` 等模組。
-- [ ] **5.2 實作六大核心功能並確保所有漢字具備「三段式振り仮名（假名注音）」**：
+- [x] **5.2 實作六大核心功能並確保所有漢字具備「三段式振り仮名（假名注音）」**：
   - 🏛️ **公會大廳 + 今日委託板**：詩織動態立繪互動、398 天任意跳轉／打卡、今日單字漢字文法直接點選學習、本機課程影片快速開啟指引。
   - 🔤 **全域假名注音切換器 + 點詞查字小卡**：頂部一鍵切換 `全標 / 智慧 / 隱藏`，點擊單字即彈出解釋與 Web Speech API 真人日文發音（`ja-JP`）。
   - ⚔️ **RPG 回合制討伐戰鬥**：支援假名、N5、N4、N3 各級題庫隨機出題（含聽力題、讀音題、字義題、文法題）、怪物血條動畫、連擊加成、答錯時詩織溫柔講解。
-  - 🗂️ **SRS 記憶神殿**：實作 SM-2 演算法抽認卡、正面/背面翻牌、假名注音開關、發音播放。
-  - 💬 **詩織的櫃台（AI 對話 + 語音 STT/TTS + 每日 3 句造句批改）**：串接 Gemini API（支援免費 Flash 模型）+ 完整的無 Key 離線腳本備援模式。
+  - 🗂️ **SRS 記憶神殿**：實作 SM-2 演算法抽認卡（3,707 張）、正面/背面翻牌、假名注音開關、發音播放。
+  - 💬 **詩織的櫃台（AI 對話 + 語音 STT/TTS + 每日 3 句造句批改）**：串接 Gemini API（支援免費 Flash 模型）+ 50+ 條離線情境對話降級備援模式。
   - 📖 **冒險者圖鑑 + ⚙️ 雲端存檔設定**：五十音/漢字/單字/文法搜尋圖鑑（隨熟練度變換卡片階級），以及透過 GitHub API 自動讀寫 `snake19910808/nihongo-save` 的雲端同步功能。
 
 ### Stage 6：模擬器實測、GitHub Pages 部署與驗收指南
-- [ ] **6.1 本機伺服器與 Android Studio `Pixel_8_Pro_API_35` 模擬器驗證**：
-  - 啟動本機 HTTP Server，並透過瀏覽器與 Android Studio `Pixel_8_Pro_API_35` 模擬器（或 headless browser + ADB）測試桌面版與手機版畫面、確認無 Console Error、確認假名注音與戰鬥流程正常運作。
-- [ ] **6.2 推送至 `snake19910808/nihongo-guild` 並啟用 GitHub Pages**：
+- [x] **6.1 本機伺服器與 Android Studio `Pixel_8_Pro_API_35` 模擬器驗證**：
+  - 啟動本機 HTTP Server，並透過瀏覽器與 Android Studio `Pixel_8_Pro_API_35` 模擬器測試桌面版與手機版畫面、確認 5 大資料庫與 Service Worker 載入正常、確認假名注音、任務打勾、SRS 卡片翻轉、RPG 戰鬥與詩織對話正常運作。
+- [x] **6.2 推送至 `snake19910808/nihongo-guild` 並啟用 GitHub Pages**：
   - 再三確認 `git status` 不含私人教材與密碼後，Commit 並 Push 至 `nihongo-guild`，設定 GitHub Pages 自動部署，確認公開網址可正常開啟。
-- [ ] **6.3 產出給使用者的驗收與開學指南（更新 `README.md` 與 `PLAN.md`）**：
+- [x] **6.3 產出給使用者的驗收與開學指南（更新 `README.md` 與 `PLAN.md`）**：
   - 清楚列出：公開網頁網址、如何在 PC 與 Pixel 8 Pro 安裝 PWA、如何填入 Gemini API Key 與 GitHub Token 啟用雲端同步，以及如何開始 Day 1 的學習。
+
+---
+
+## 9. 更新紀錄（Changelog）
+
+- **2026-10-28 (v1.1)**：
+  - 完成 Stage 1：建立安全 `.gitignore`，隔離課本圖書與教學影片；透過 GitHub CLI 建立 `snake19910808/nihongo-guild` (Public) 與 `snake19910808/nihongo-save` (Private with save.json)。
+  - 完成 Stage 2：生成詩織 3 種表情立繪（normal, happy, shy）、公會木質大廳背景與 4 款經典 RPG 怪物素材。
+  - 完成 Stage 3：爬取、清理並交叉驗證 5 大核心題庫（104 假名、640 漢字、2963 單字、364 文法包含出口仁初級本 42 個學習目標），產出 100% 通過之 `VALIDATION_REPORT.md`。
+  - 完成 Stage 4：生成 2026-11-02 至 2027-12-05 跨度 399 天每日精確學習課表（`schedule_398days.json` 與 `SCHEDULE_398_DAYS.md`）。
+  - 完成 Stage 5：實作全套 PWA 應用程式（`index.html`、`style.css`、`app.js`、`furigana.js`、`battle.js`、`srs.js`、`shiori_ai.js`、`sync.js`、`manifest.json`、`sw.js`）。
+  - 完成 Stage 6：透過 Android Studio `Pixel_8_Pro_API_35` 模擬器執行實機測試，驗證 6 大每日任務打勾計分、3,707 張卡片 SM-2 抽認卡、四戰區 RPG 回合制戰鬥、詩織離線/線上雙模對話，並將全套系統推送至 GitHub Pages 部署。

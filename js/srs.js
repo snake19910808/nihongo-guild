@@ -154,6 +154,32 @@ const SRSManager = {
     this.renderCurrentCard();
   },
 
+  gradeCurrentCard(rating) {
+    this.answerCard(rating);
+  },
+
+  getStats() {
+    const total = this.allCards.length;
+    const due = this.dueCards.length;
+    const mastered = this.allCards.filter((c) => c.repetition >= 3).length;
+    return { total, due, mastered };
+  },
+
+  getSavedCardsData() {
+    const res = {};
+    this.allCards.forEach((c) => {
+      if (c.repetition > 0 || c.interval > 0) {
+        res[c.id] = {
+          interval: c.interval,
+          repetition: c.repetition,
+          efactor: c.efactor,
+          dueDate: c.dueDate
+        };
+      }
+    });
+    return res;
+  },
+
   renderCurrentCard() {
     const card = this.getCurrentCard();
     const flashcardEl = document.getElementById("srs-flashcard");

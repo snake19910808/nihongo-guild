@@ -1,5 +1,5 @@
 // Service Worker for Nihongo Guild PWA
-const CACHE_NAME = "nihongo-guild-v1";
+const CACHE_NAME = "nihongo-guild-v6";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -61,15 +61,39 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
+
+  // 對於 /data/ 資料集，採用網路優先策略 (Network First, Cache Fallback)，且安全寫入快取
+  if (event.request.url.includes("/data/")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const resClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, resClone).catch(() => {});
+            }).catch(() => {});
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 其餘靜態資源採用快取優先 (Cache First, Network Fallback)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const resClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, resClone).catch(() => {});
+          }).catch(() => {});
+        }
         return networkResponse;
-      }).catch(() => {
-        return caches.match("./index.html");
       });
     })
   );
