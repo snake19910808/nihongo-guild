@@ -1,0 +1,24 @@
+{
+  "name": "冒險者公會日語之旅 (Nihongo Guild)",
+  "short_name": "日語公會",
+  "description": "0到N3一年突破！結合冒險者公會RPG、大姊姊導師詩織與SRS間隔記憶的日語學習PWA",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#181324",
+  "theme_color": "#281b36",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

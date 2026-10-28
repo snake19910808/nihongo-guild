@@ -1,0 +1,1100 @@
+/* ========================================================
+   冒險者公會日語之旅 (Nihongo Guild) - 樣式表
+   深色奇幻公會主題風格 (Dark Fantasy RPG Guild)
+   ======================================================== */
+
+:root {
+  --bg-primary: #14101e;
+  --bg-secondary: #1f182d;
+  --bg-tertiary: #2a203c;
+  --bg-card: #241b35;
+  --bg-card-hover: #32254a;
+  --border-gold: #d4af37;
+  --border-gold-glow: rgba(212, 175, 55, 0.4);
+  --border-subtle: #3d2f57;
+  --text-main: #f0e6d2;
+  --text-sub: #b8a9c9;
+  --text-muted: #827299;
+  --accent-gold: #f39c12;
+  --accent-gold-light: #f1c40f;
+  --accent-red: #e74c3c;
+  --accent-green: #2ecc71;
+  --accent-blue: #3498db;
+  --accent-purple: #9b59b6;
+  --shadow-main: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-gold: 0 0 15px rgba(212, 175, 55, 0.25);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --font-main: "Noto Sans TC", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(50, 30, 80, 0.25) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(80, 40, 40, 0.15) 0%, transparent 40%);
+}
+
+/* ================= 頂部狀態與導覽列 ================= */
+.app-header {
+  background: linear-gradient(180deg, #1b1429 0%, #151022 100%);
+  border-bottom: 2px solid var(--border-gold);
+  padding: 10px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-main);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--border-gold);
+  box-shadow: var(--shadow-gold);
+}
+
+.brand-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-gold-light);
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+
+.brand-badge {
+  font-size: 0.7rem;
+  background: var(--bg-tertiary);
+  color: var(--accent-gold);
+  border: 1px solid var(--border-gold);
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+/* 玩家狀態列 (HP / EXP / 金幣) */
+.player-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-label {
+  color: var(--text-muted);
+}
+
+.status-value {
+  font-weight: bold;
+  color: var(--text-main);
+}
+
+.gold-val {
+  color: var(--accent-gold-light);
+}
+
+.streak-val {
+  color: #ff7675;
+}
+
+.exp-bar-container {
+  width: 80px;
+  height: 8px;
+  background: #110e1a;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.exp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2ecc71, #a8e063);
+  width: 30%;
+  transition: width 0.3s ease;
+}
+
+/* 頂部操作按鈕 (注音模式切換器 + 存檔) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.furigana-toggle-group {
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.furi-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.furi-btn.active {
+  background: var(--border-gold);
+  color: #14101e;
+  font-weight: bold;
+}
+
+.icon-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--border-gold);
+  color: var(--accent-gold-light);
+}
+
+/* ================= 導覽分頁切換列 ================= */
+.app-nav {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.nav-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.nav-tab:hover {
+  color: var(--text-main);
+  background: var(--bg-tertiary);
+}
+
+.nav-tab.active {
+  color: var(--accent-gold-light);
+  background: var(--bg-card);
+  font-weight: bold;
+  border-bottom: 3px solid var(--border-gold);
+}
+
+/* ================= 主要內容區 ================= */
+.main-container {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 16px;
+}
+
+.tab-pane {
+  display: none;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= 1. 公會大廳分頁 ================= */
+.guild-hall-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .guild-hall-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 詩織櫃台展示卡 */
+.shiori-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-main);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.shiori-bg-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background-image: url('../assets/guild_bg.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.35;
+  filter: blur(1px);
+  z-index: 1;
+}
+
+.shiori-avatar-frame {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 3px solid var(--border-gold);
+  box-shadow: var(--shadow-gold);
+  background: #1a1224;
+}
+
+.shiori-portrait {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.shiori-info {
+  position: relative;
+  z-index: 2;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.shiori-name {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--accent-gold-light);
+}
+
+.shiori-role {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.affection-bar-wrapper {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.heart-icon {
+  color: #ff6b81;
+}
+
+.affection-track {
+  width: 120px;
+  height: 8px;
+  background: #110e1a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.affection-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff758c, #ff7eb3);
+  width: 25%;
+  transition: width 0.3s ease;
+}
+
+.shiori-dialogue-bubble {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  position: relative;
+  text-align: left;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.dialogue-text {
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.dialogue-zh {
+  color: var(--text-sub);
+  font-size: 0.82rem;
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 6px;
+}
+
+.shiori-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-talk {
+  flex: 1;
+  background: linear-gradient(135deg, #d4af37, #b8860b);
+  border: none;
+  color: #120e1a;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-talk:hover {
+  opacity: 0.9;
+}
+
+/* 今日委託羊皮紙板 (Quest Board) */
+.quest-board {
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-main);
+  display: flex;
+  flex-direction: column;
+}
+
+.quest-board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border-subtle);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.date-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.day-badge {
+  background: var(--bg-tertiary);
+  color: var(--accent-gold-light);
+  border: 1px solid var(--border-gold);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.chap-badge {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: #2c3e50;
+  color: #ecf0f1;
+}
+
+.today-quest-title {
+  font-size: 1.25rem;
+  color: var(--accent-gold-light);
+  margin-bottom: 8px;
+}
+
+.textbook-guide-box {
+  background: rgba(42, 32, 60, 0.7);
+  border-left: 4px solid var(--border-gold);
+  padding: 10px 14px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-bottom: 18px;
+  font-size: 0.88rem;
+}
+
+.tb-line {
+  margin: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 6 大子委託清單 */
+.quest-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.task-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.task-item:hover {
+  border-color: var(--border-gold);
+  background: var(--bg-tertiary);
+}
+
+.task-item.completed {
+  border-color: var(--accent-green);
+  opacity: 0.75;
+}
+
+.task-item.completed .task-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 2px solid var(--border-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: var(--accent-green);
+}
+
+.task-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.task-time {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+  color: var(--text-sub);
+}
+
+.task-action-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-gold);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.task-action-btn:hover {
+  background: var(--border-gold);
+  color: #120e1a;
+}
+
+/* 今日收錄單字與漢字預覽小卡 */
+.daily-cards-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 16px;
+}
+
+.section-sub-title {
+  font-size: 0.95rem;
+  color: var(--text-sub);
+  margin-bottom: 10px;
+}
+
+.chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vocab-chip, .kanji-chip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vocab-chip:hover, .kanji-chip:hover {
+  border-color: var(--border-gold);
+  background: var(--bg-tertiary);
+  transform: translateY(-2px);
+}
+
+/* ================= 2. 討伐戰鬥分頁 (Battle) ================= */
+.battle-arena {
+  background: var(--bg-card);
+  border: 2px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-main);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.battle-map-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.map-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-sub);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.map-btn.active {
+  background: var(--border-gold);
+  color: #120e1a;
+  font-weight: bold;
+}
+
+.battle-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.enemy-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: radial-gradient(circle, #312147 0%, #171124 80%);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.monster-sprite {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--border-gold);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+  margin-bottom: 14px;
+  transition: transform 0.2s ease;
+}
+
+.monster-sprite.hit {
+  animation: shake 0.4s ease;
+  filter: brightness(2) saturate(1.5);
+}
+
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  20% { transform: translate(-3px, 0px) rotate(2deg); }
+  40% { transform: translate(3px, 2px) rotate(-2deg); }
+  60% { transform: translate(-3px, 1px) rotate(1deg); }
+  80% { transform: translate(3px, 1px) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.monster-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--accent-gold-light);
+  margin-bottom: 4px;
+}
+
+.hp-bar-outer {
+  width: 240px;
+  height: 14px;
+  background: #110e1a;
+  border-radius: 7px;
+  border: 1px solid #44325a;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.hp-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #ff7675);
+  width: 100%;
+  transition: width 0.3s ease;
+}
+
+/* 題目與選項 */
+.quiz-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: center;
+}
+
+.quiz-prompt {
+  font-size: 1.4rem;
+  margin-bottom: 16px;
+  color: #fff;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.quiz-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .quiz-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.option-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-btn:hover {
+  border-color: var(--border-gold);
+  background: var(--bg-card-hover);
+}
+
+.option-btn.correct {
+  background: var(--accent-green) !important;
+  color: #120e1a !important;
+  font-weight: bold;
+}
+
+.option-btn.wrong {
+  background: var(--accent-red) !important;
+  color: #fff !important;
+}
+
+/* 戰鬥訊息反饋 */
+.battle-message-box {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ================= 3. SRS 記憶神殿 (Flashcards) ================= */
+.srs-container {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.srs-controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card-flashcard-wrap {
+  perspective: 1000px;
+  min-height: 320px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.flashcard {
+  width: 100%;
+  height: 320px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-gold);
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  box-shadow: var(--shadow-main);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.5s;
+  transform-style: preserve-3d;
+  position: relative;
+}
+
+.flashcard.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  padding: 30px;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.card-main-word {
+  font-size: 2.8rem;
+  font-weight: bold;
+  color: var(--accent-gold-light);
+  margin-bottom: 12px;
+}
+
+.card-reading {
+  font-size: 1.3rem;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+}
+
+.card-meaning {
+  font-size: 1.4rem;
+  color: #fff;
+  margin-bottom: 14px;
+}
+
+.card-example {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  max-width: 90%;
+  line-height: 1.6;
+}
+
+.srs-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.srs-btn {
+  padding: 12px 6px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  transition: opacity 0.2s;
+}
+
+.srs-btn:hover {
+  opacity: 0.88;
+}
+
+.srs-again { background: #e74c3c; color: #fff; }
+.srs-hard  { background: #e67e22; color: #fff; }
+.srs-good  { background: #3498db; color: #fff; }
+.srs-easy  { background: #2ecc71; color: #120e1a; }
+
+/* ================= 4. 詩織的櫃台 (AI Tutor) ================= */
+.tutor-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 800px) {
+  .tutor-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.msg-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.msg-bubble.shiori {
+  align-self: flex-start;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-gold);
+}
+
+.msg-bubble.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #4834d4, #686de0);
+  color: #fff;
+}
+
+.chat-input-bar {
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  background: var(--bg-secondary);
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--border-gold);
+}
+
+/* ================= 5. 冒險者圖鑑 (Compendium) ================= */
+.compendium-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+
+.c-tab {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-sub);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.c-tab.active {
+  background: var(--border-gold);
+  color: #120e1a;
+  font-weight: bold;
+}
+
+.compendium-search-bar {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 10px;
+}
+
+.cards-deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.compendium-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.compendium-card:hover {
+  border-color: var(--border-gold);
+  transform: translateY(-2px);
+}
+
+/* 卡片階級邊框 */
+.compendium-card.tier-1 { border-left: 4px solid #95a5a6; } /* 銅卡 */
+.compendium-card.tier-2 { border-left: 4px solid #bdc3c7; } /* 銀卡 */
+.compendium-card.tier-3 { border-left: 4px solid #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.2); } /* 金卡 */
+.compendium-card.tier-4 { border-left: 4px solid #3498db; box-shadow: 0 0 15px rgba(52, 152, 219, 0.4); } /* 鑽石大師 */
+
+/* ================= 6. 彈出視窗 (Modal) ================= */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 2px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: var(--shadow-main);
+  position: relative;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.modal-close-btn:hover {
+  color: #fff;
+}
+
+/* ================= 假名注音 (Furigana) 樣式 ================= */
+ruby {
+  ruby-align: center;
+}
+
+rt {
+  font-size: 0.6em;
+  color: var(--accent-gold);
+  user-select: none;
+  font-weight: normal;
+}
+
+/* 智慧模式隱藏 (已熟練) */
+body.furi-smart rt.mastered {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+body.furi-smart rt.mastered:hover {
+  opacity: 1;
+}
+
+/* 完全隱藏模式 */
+body.furi-hidden rt {
+  display: none;
+}

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>冒險者公會・日語之旅 (Nihongo Guild)</title>
+  
+  <!-- PWA & Mobile Meta -->
+  <meta name="theme-color" content="#14101e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NihongoGuild">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ================= 頂部狀態列 (Header & Status) ================= -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">🏰</span>
+        <div>
+          <span class="brand-title">冒險者公會・日語之旅</span>
+          <span class="brand-badge">N3 衝刺中</span>
+        </div>
+      </div>
+
+      <!-- 冒險者數值狀態 -->
+      <div class="player-status-bar">
+        <div class="status-item">
+          <span class="status-label">等級</span>
+          <span class="status-value" id="playerLevel">Lv.1</span>
+        </div>
+
+        <div class="status-item exp-item">
+          <div style="display:flex; justify-content:space-between; width:100%; font-size:0.75rem;">
+            <span class="status-label">EXP</span>
+            <span id="playerExpText" style="color:var(--text-sub);">0 / 100 EXP</span>
+          </div>
+          <div class="exp-bar-container">
+            <div class="exp-bar-fill" id="playerExpFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="status-item">
+          <span class="status-label">金幣</span>
+          <span class="gold-val" id="playerGold">50 G</span>
+        </div>
+
+        <div class="status-item">
+          <span class="status-label">連續冒險</span>
+          <span class="streak-val" id="playerStreak">1 天</span>
+        </div>
+      </div>
+
+      <!-- 右側假名注音切換與設定 -->
+      <div class="header-actions">
+        <div class="furigana-toggle-group" title="日文漢字注音顯示切換">
+          <button class="furi-btn active" data-mode="all" title="全部顯示假名注音">🟢 全</button>
+          <button class="furi-btn" data-mode="smart" title="智慧隱藏已掌握漢字">🟡 智</button>
+          <button class="furi-btn" data-mode="hidden" title="隱藏注音（點擊查看）">🔴 隱</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 導覽分頁按鈕 (Navigation Tabs) ================= -->
+  <nav class="app-nav">
+    <button class="nav-tab active" data-tab="tab-hall">🏰 公會大廳</button>
+    <button class="nav-tab" data-tab="tab-battle">⚔️ 討伐戰鬥</button>
+    <button class="nav-tab" data-tab="tab-srs">🎴 記憶神殿</button>
+    <button class="nav-tab" data-tab="tab-shiori">☕ 詩織櫃台</button>
+    <button class="nav-tab" data-tab="tab-compendium">📚 冒險圖鑑</button>
+    <button class="nav-tab" data-tab="tab-settings">⚙️ 系統設定</button>
+  </nav>
+
+  <!-- ================= 主內容區域 (Main Panes) ================= -->
+  <main class="main-container">
+
+    <!-- 1. 公會大廳 (Guild Hall) -->
+    <section class="tab-pane active" id="tab-hall">
+      <div class="guild-hall-grid">
+        
+        <!-- 左側：詩織櫃台大姊姊展示卡 -->
+        <div class="shiori-card">
+          <div class="shiori-bg-overlay"></div>
+          
+          <div class="shiori-avatar-frame">
+            <img src="assets/shiori_normal.jpg" alt="公會看板娘 詩織" class="shiori-portrait" id="shioriPortrait">
+          </div>
+
+          <div class="shiori-info">
+            <div class="shiori-name">詩織（Shiori）</div>
+            <div class="shiori-role">公會接待看板娘・專屬日語導師</div>
+          </div>
+
+          <!-- 好感度進度條 -->
+          <div class="affection-bar-wrapper" title="詩織好感度：完成每日委託或擊敗魔物可提升">
+            <span class="heart-icon">💖</span>
+            <div class="affection-track">
+              <div class="affection-fill" id="shioriAffectionFill" style="width: 10%;"></div>
+            </div>
+            <span id="shioriAffectionText" style="font-size:0.8rem;color:var(--text-sub);white-space:nowrap;">好感度 Lv.1 (10/100)</span>
+          </div>
+
+          <!-- 詩織親切對話氣泡 -->
+          <div class="shiori-dialogue-bubble">
+            <div class="dialogue-text" id="shioriHallDialogueJa">冒険者[ぼうけんしゃ]さん、今日[きょう]も公会[こうかい]へようこそ！</div>
+            <div class="dialogue-zh" id="shioriHallDialogueZh">冒險者，今天也歡迎來到公會！今天的委託清單已經準備好了喔，一步一步踏實前進吧！</div>
+          </div>
+
+          <div class="shiori-actions">
+            <button class="btn-talk" id="hallTalkBtn">💬 與詩織聊聊天</button>
+          </div>
+        </div>
+
+        <!-- 右側：今日冒險委託羊皮紙板 (Quest Board) -->
+        <div class="quest-board">
+          <div class="quest-board-header">
+            <div class="date-controls">
+              <button class="icon-btn" id="prevDayBtn" title="前一天">◀</button>
+              <span class="day-badge" id="questDayBadge">Day 1 / 399</span>
+              <button class="icon-btn" id="nextDayBtn" title="後一天">▶</button>
+              <button class="icon-btn" id="jumpTodayBtn" title="回到今日進度" style="font-size:0.85rem;padding:4px 8px;">今日</button>
+              <span class="chap-badge" id="questChapterBadge">序章・五十音平假名</span>
+            </div>
+            <div id="questDateText" style="font-size:0.9rem;color:var(--text-sub);">2026-11-02 (週一)</div>
+          </div>
+
+          <h2 class="today-quest-title" id="questMainTitle">清晨啟程！あ行清音與公會報到</h2>
+
+          <!-- 出口仁課本與影片指引 -->
+          <div class="textbook-guide-box" id="textbookGuideBox">
+            <!-- 動態注入教材指引 -->
+          </div>
+
+          <!-- 6 大子委託任務清單 -->
+          <div class="quest-tasks-list" id="questTasksList">
+            <!-- 動態渲染當日 6 個學習任務 -->
+          </div>
+
+          <!-- 本日收錄單字與漢字預覽 -->
+          <div class="daily-cards-section">
+            <div class="section-sub-title">✨ 本日收錄單字與漢字（點擊可查看詳情與發音）</div>
+            <div class="chips-container" id="dailyChipsContainer">
+              <!-- 動態渲染晶片 -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 2. 討伐戰鬥 (Battle Arena) -->
+    <section class="tab-pane" id="tab-battle">
+      <div class="battle-arena">
+        
+        <!-- 地圖區域切換 -->
+        <div class="battle-map-selector">
+          <button class="map-btn active" data-zone="kana">🌱 五十音村莊</button>
+          <button class="map-btn" data-zone="n5">🌲 N5 迷霧幽林</button>
+          <button class="map-btn" data-zone="n4">🏛️ N4 遠古神殿</button>
+          <button class="map-btn" data-zone="n3">🌋 N3 魔王神殿</button>
+        </div>
+
+        <div class="battle-stage">
+          
+          <!-- 魔物區域 -->
+          <div class="enemy-area">
+            <img src="assets/monster_slime.jpg" alt="魔物立繪" class="monster-sprite" id="monsterSprite">
+            <div class="monster-name" id="monsterName">草史萊姆 (Slime Lv.1)</div>
+            
+            <div class="hp-bar-outer">
+              <div class="hp-bar-inner" id="monsterHpInner" style="width: 100%;"></div>
+            </div>
+            <div id="monsterHpText" style="font-size:0.8rem;color:var(--text-sub);">HP: 100 / 100</div>
+          </div>
+
+          <!-- 題目面板 -->
+          <div class="quiz-panel">
+            <div class="quiz-prompt" id="quizPrompt">
+              <span>題目載入中...</span>
+            </div>
+
+            <div class="quiz-options-grid" id="quizOptions">
+              <!-- 動態選項按鈕 -->
+            </div>
+
+            <!-- 戰鬥回饋提示 -->
+            <div class="battle-message-box info" id="battleMsg">
+              連擊：<strong style="color:var(--accent-gold);margin-left:4px;">0 Combo</strong>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3. 記憶神殿 (SRS Flashcards) -->
+    <section class="tab-pane" id="tab-srs">
+      <div class="srs-container">
+        
+        <div class="srs-controls-header">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="map-btn srs-filter-btn active" data-filter="ALL">全部</button>
+            <button class="map-btn srs-filter-btn" data-filter="N5">N5</button>
+            <button class="map-btn srs-filter-btn" data-filter="N4">N4</button>
+            <button class="map-btn srs-filter-btn" data-filter="N3">N3</button>
+            <button class="map-btn srs-filter-btn" data-filter="KANJI">漢字</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="chap-badge" id="srsDueCountBadge">0 張</span>
+            <span id="srsStatsText" style="font-size:0.85rem;color:var(--text-sub);">載入中...</span>
+          </div>
+        </div>
+
+        <!-- 3D 翻轉卡片 -->
+        <div class="card-flashcard-wrap">
+          <div class="flashcard" id="flashcardElement" title="點擊卡片可翻面查看背面">
+            
+            <!-- 正面 -->
+            <div class="card-front">
+              <div class="card-main-word" id="cardFrontWord">日本語</div>
+              <div class="card-reading" id="cardFrontSub">[名詞]</div>
+              <div style="margin-top:20px;font-size:0.85rem;color:var(--text-muted);">（點擊卡片翻面）</div>
+            </div>
+
+            <!-- 背面 -->
+            <div class="card-back">
+              <div class="card-main-word" id="cardBackWord">日本語</div>
+              <div class="card-reading" id="cardBackReading">【にほんご】</div>
+              <div class="card-meaning" id="cardBackMeaning">日語、日本語</div>
+              <div class="card-example" id="cardBackExample">日本語[にほんご]を勉強[べんきょう]します。</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SM-2 四級難度按鈕 -->
+        <div class="srs-buttons-grid">
+          <button class="srs-btn srs-again" data-grade="1">
+            <span>忘記了</span>
+            <small>(1 天後)</small>
+          </button>
+          <button class="srs-btn srs-hard" data-grade="2">
+            <span>很吃力</span>
+            <small>(稍後再測)</small>
+          </button>
+          <button class="srs-btn srs-good" data-grade="3">
+            <span>想起來了</span>
+            <small>(標準間隔)</small>
+          </button>
+          <button class="srs-btn srs-easy" data-grade="4">
+            <span>太簡單</span>
+            <small>(大幅延長)</small>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4. 詩織櫃台 (AI Tutor & Chat) -->
+    <section class="tab-pane" id="tab-shiori">
+      <div class="tutor-layout">
+        
+        <!-- 左側：詩織人物簡介與造句批改按鈕 -->
+        <div class="shiori-card" style="align-self: flex-start;">
+          <div class="shiori-avatar-frame">
+            <img src="assets/shiori_normal.jpg" alt="詩織立繪" class="shiori-portrait" id="tutorShioriPortrait">
+          </div>
+          <div class="shiori-info">
+            <div class="shiori-name">詩織（Shiori）</div>
+            <div class="shiori-role">公會專屬日語導師</div>
+          </div>
+          <p style="font-size:0.88rem;color:var(--text-sub);line-height:1.6;margin-top:10px;">
+            「冒險者，無論是文法疑難雜症、發音訣竅，或是想聊聊天放鬆一下，我都隨時在這裡等你喔！」
+          </p>
+          <button class="btn-talk" id="openWritingGraderBtn" style="margin-top:16px;">✍️ 每日三句造句批改</button>
+        </div>
+
+        <!-- 右側：交談聊天室 -->
+        <div class="chat-box">
+          <div class="chat-messages" id="shioriChatMessages">
+            <div class="msg-bubble shiori">
+              冒險者你好呀！我是公會的看板娘詩織。<br>
+              今天有什麼日文上的問題想問我嗎？或者把你今天練習的造句發給我，我來幫你批改喔！☕
+            </div>
+          </div>
+
+          <div class="chat-input-bar">
+            <input type="text" id="shioriChatInput" class="chat-input" placeholder="輸入你想詢問的問題或造句...">
+            <button class="btn-talk" id="shioriSendBtn" style="flex:0 0 80px;">發送</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5. 冒險圖鑑 (Compendium) -->
+    <section class="tab-pane" id="tab-compendium">
+      <div class="compendium-tabs">
+        <button class="c-tab active" data-category="all">全部收錄</button>
+        <button class="c-tab" data-category="kana">五十音</button>
+        <button class="c-tab" data-category="n5">N5 寶庫</button>
+        <button class="c-tab" data-category="n4">N4 進階</button>
+        <button class="c-tab" data-category="n3">N3 領域</button>
+      </div>
+
+      <div class="compendium-search-bar">
+        <input type="text" id="compendiumSearch" class="chat-input" placeholder="🔍 搜尋單字、假名讀音、漢字或中文意義...">
+      </div>
+
+      <div class="cards-deck-grid" id="cardsDeckGrid">
+        <!-- 動態渲染卡片清單 -->
+      </div>
+    </section>
+
+    <!-- 6. 系統設定與同步 (Settings) -->
+    <section class="tab-pane" id="tab-settings">
+      <div style="max-width:680px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border-gold);border-radius:var(--radius-md);padding:24px;">
+        <h2 style="color:var(--accent-gold-light);margin-bottom:18px;">⚙️ 系統設定與存檔雲端同步</h2>
+
+        <!-- Gemini API Key -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;margin-bottom:6px;font-weight:bold;">🤖 Google Gemini API Key（支援免費額度）：</label>
+          <input type="password" id="settingGeminiKey" class="chat-input" placeholder="請貼上你的 Gemini API Key (AIzaSy...)" style="width:100%;margin-bottom:6px;">
+          <div style="font-size:0.8rem;color:var(--text-sub);">
+            * 留空則自動使用內建的 50+ 組詩織離線對話劇本庫，不影響日常學習與造句練習。
+          </div>
+        </div>
+
+        <!-- Gemini 模型切換 -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;margin-bottom:6px;font-weight:bold;">🧠 Gemini 模型選擇：</label>
+          <select id="settingGeminiModel" class="chat-input" style="width:100%;">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash (推薦・速度快且免費額度充足)</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash (經典輕量)</option>
+          </select>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border-subtle);margin:20px 0;">
+
+        <!-- GitHub 私人存檔同步 -->
+        <div style="margin-bottom:20px;">
+          <h3 style="color:var(--accent-gold);margin-bottom:10px;">☁️ GitHub 私人倉庫進度備份 (跨 PC / 手機同步)</h3>
+          
+          <label style="display:block;margin-bottom:4px;font-size:0.9rem;">GitHub Personal Access Token (PAT)：</label>
+          <input type="password" id="settingGithubPat" class="chat-input" placeholder="ghp_xxxxxxxxxxxx" style="width:100%;margin-bottom:10px;">
+
+          <label style="display:block;margin-bottom:4px;font-size:0.9rem;">私人存檔倉庫 (格式：username/repo)：</label>
+          <input type="text" id="settingGithubRepo" class="chat-input" value="snake19910808/nihongo-save" style="width:100%;margin-bottom:14px;">
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-talk" id="syncPushBtn" style="background:#27ae60;color:#fff;">備份存檔至 GitHub</button>
+            <button class="btn-talk" id="syncFetchBtn" style="background:#2980b9;color:#fff;">從 GitHub 下載存檔</button>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border-subtle);margin:20px 0;">
+
+        <!-- 本機手動備份 -->
+        <div style="margin-bottom:20px;">
+          <h3 style="color:var(--accent-gold);margin-bottom:10px;">💾 手動 JSON 存檔匯出 / 匯入</h3>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn-talk" id="exportSaveBtn">匯出存檔檔案 (save.json)</button>
+            <label class="btn-talk" style="cursor:pointer;background:var(--bg-tertiary);color:var(--text-main);display:inline-block;padding:8px 16px;">
+              匯入存檔檔案
+              <input type="file" id="importSaveFile" accept=".json" style="display:none;">
+            </label>
+          </div>
+        </div>
+
+        <div style="text-align:right;margin-top:24px;">
+          <button class="btn-talk" id="saveSettingsBtn" style="padding:10px 24px;font-size:1rem;">💾 儲存所有設定</button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= 全域通用彈窗 (Modal Overlay) ================= -->
+  <div class="modal-overlay" id="appModalOverlay">
+    <div class="modal-content">
+      <button class="modal-close-btn" id="modalCloseBtn">✕</button>
+      <div id="modalDynamicBody">
+        <!-- 動態彈窗內容 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript 核心腳本 -->
+  <script src="js/furigana.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/battle.js"></script>
+  <script src="js/shiori_ai.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

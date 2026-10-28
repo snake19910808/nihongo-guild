@@ -1,0 +1,1048 @@
+/**
+ * app.js - 冒險者公會日語之旅 (Nihongo Guild) 核心主控制器
+ */
+
+const App = {
+  data: {
+    kana: [],
+    kanji: [],
+    vocab: [],
+    grammar: [],
+    schedule: []
+  },
+
+  settings: {},
+  saveData: {},
+  currentDayIndex: 1, // 1 ~ 399
+
+  async init() {
+    console.log("🌸 Nihongo Guild 冒險者公會日語系統啟動中...");
+    
+    // 1. 讀取設定與存檔
+    this.settings = window.SyncManager.loadSettings();
+    this.saveData = window.SyncManager.loadLocalSave();
+    this.currentDayIndex = this.saveData.progress.currentDay || 1;
+
+    // 2. 載入 5 大資料集
+    try {
+      const [kanaRes, kanjiRes, vocabRes, grammarRes, schedRes] = await Promise.all([
+        fetch("data/kana.json"),
+        fetch("data/kanji.json"),
+        fetch("data/vocab.json"),
+        fetch("data/grammar.json"),
+        fetch("data/schedule_398days.json")
+      ]);
+
+      this.data.kana = await kanaRes.json();
+      this.data.kanji = await kanjiRes.json();
+      this.data.vocab = await vocabRes.json();
+      this.data.grammar = await grammarRes.json();
+      this.data.schedule = await schedRes.json();
+      console.log("✅ 所有課程與題庫資料集載入完成！");
+    } catch (e) {
+      console.error("載入資料集失敗：", e);
+      this.showToast("資料庫載入異常，請確認伺服器連線或重整頁面", "error");
+    }
+
+    // 3. 初始化模組
+    if (window.FuriganaEngine) {
+      window.FuriganaEngine.init(
+        this.saveData.progress.furiganaMode || "all",
+        this.saveData.progress.masteredKanji || []
+      );
+    }
+
+    if (window.SRSManager) {
+      window.SRSManager.init(
+        this.data.vocab,
+        this.data.kanji,
+        this.data.kana,
+        this.saveData.srs?.cards || {}
+      );
+    }
+
+    if (window.BattleManager) {
+      window.BattleManager.init({
+        kana: this.data.kana,
+        vocab: this.data.vocab,
+        kanji: this.data.kanji,
+        grammar: this.data.grammar
+      });
+    }
+
+    // 4. 綁定全域 UI 事件
+    this.bindNavigation();
+    this.bindFuriganaToggle();
+    this.bindGuildHallControls();
+    this.bindChatEvents();
+    this.bindCompendium();
+    this.bindSettings();
+    this.bindModal();
+
+    // 5. 渲染各介面初始狀態
+    this.updatePlayerHeader();
+    this.renderTodayQuest(this.currentDayIndex);
+    this.renderSrsCard();
+    this.renderCompendium();
+    this.fillSettingsForm();
+
+    // 6. 詩織迎賓問候
+    this.greetPlayer();
+
+    // 7. 註冊 Service Worker
+    this.registerServiceWorker();
+  },
+
+  /**
+   * 註冊 PWA Service Worker
+   */
+  registerServiceWorker() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("./sw.js")
+        .then((reg) => console.log("Service Worker 註冊成功，範圍：", reg.scope))
+        .catch((err) => console.warn("Service Worker 註冊失敗：", err));
+    }
+  },
+
+  /**
+   * 導覽分頁切換
+   */
+  bindNavigation() {
+    const navTabs = document.querySelectorAll(".nav-tab");
+    navTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const targetId = tab.getAttribute("data-tab");
+        navTabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        const panes = document.querySelectorAll(".tab-pane");
+        panes.forEach((p) => p.classList.remove("active"));
+        const activePane = document.getElementById(targetId);
+        if (activePane) activePane.classList.add("active");
+
+        // 若切換到 SRS，重新渲染卡片
+        if (targetId === "tab-srs") {
+          this.renderSrsCard();
+        }
+      });
+    });
+  },
+
+  /**
+   * 假名注音切換開關 (🟢 全部 / 🟡 智慧 / 🔴 隱藏)
+   */
+  bindFuriganaToggle() {
+    const furiBtns = document.querySelectorAll(".furi-btn");
+    furiBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mode = btn.getAttribute("data-mode");
+        furiBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        if (window.FuriganaEngine) {
+          window.FuriganaEngine.setMode(mode);
+        }
+        this.saveData.progress.furiganaMode = mode;
+        this.saveProgress();
+      });
+    });
+
+    // 設置初始 active 按鈕
+    const curMode = this.saveData.progress.furiganaMode || "all";
+    const curBtn = document.querySelector(`.furi-btn[data-mode="${curMode}"]`);
+    if (curBtn) {
+      furiBtns.forEach((b) => b.classList.remove("active"));
+      curBtn.classList.add("active");
+    }
+  },
+
+  /**
+   * 更新頂部玩家數值
+   */
+  updatePlayerHeader() {
+    const p = this.saveData.player;
+    const lvlEl = document.getElementById("playerLevel");
+    const expText = document.getElementById("playerExpText");
+    const expFill = document.getElementById("playerExpFill");
+    const goldEl = document.getElementById("playerGold");
+    const streakEl = document.getElementById("playerStreak");
+    const affTrack = document.getElementById("shioriAffectionFill");
+    const affText = document.getElementById("shioriAffectionText");
+
+    if (lvlEl) lvlEl.textContent = `Lv.${p.level}`;
+    if (goldEl) goldEl.textContent = `${p.gold} G`;
+    if (streakEl) streakEl.textContent = `${p.streakDays} 天`;
+
+    const maxExp = p.level * 100;
+    const expPct = Math.min(100, Math.round((p.exp / maxExp) * 100));
+    if (expText) expText.textContent = `${p.exp} / ${maxExp} EXP`;
+    if (expFill) expFill.style.width = `${expPct}%`;
+
+    const affPct = Math.min(100, Math.round((p.shioriAffection / 100) * 100));
+    if (affTrack) affTrack.style.width = `${affPct}%`;
+    if (affText) affText.textContent = `好感度 Lv.${Math.floor(p.shioriAffection / 10)} (${p.shioriAffection}/100)`;
+  },
+
+  /**
+   * 獎勵玩家經驗值、金幣、好感度
+   */
+  awardPlayer({ exp = 0, gold = 0, affection = 0 }) {
+    const p = this.saveData.player;
+    p.exp += exp;
+    p.gold += gold;
+    p.shioriAffection = Math.min(100, p.shioriAffection + affection);
+
+    // 檢查升級
+    let leveledUp = false;
+    let maxExp = p.level * 100;
+    while (p.exp >= maxExp) {
+      p.exp -= maxExp;
+      p.level += 1;
+      maxExp = p.level * 100;
+      leveledUp = true;
+    }
+
+    if (leveledUp) {
+      this.showToast(`🎉 恭喜升級！你已晉升為 Lv.${p.level} 冒險者！`, "victory");
+      if (window.ShioriAI) {
+        window.ShioriAI.updatePortrait("happy");
+      }
+    }
+
+    this.updatePlayerHeader();
+    this.saveProgress();
+  },
+
+  /**
+   * 詩織大廳迎賓話語
+   */
+  greetPlayer() {
+    const bubbleZh = document.getElementById("shioriHallDialogueZh");
+    const bubbleJa = document.getElementById("shioriHallDialogueJa");
+    const p = this.saveData.player;
+
+    const greetings = [
+      {
+        ja: `冒険者[ぼうけんしゃ]さん、今日[きょう]も公会[こうかい]へようこそ！`,
+        zh: `冒險者，今天也歡迎來到公會！今天的委託清單已經準備好了喔，一步一步踏實前進吧！`
+      },
+      {
+        ja: `焦[あせ]らず、毎日[まいにち]少[すこ]しずつ続[つづ]けましょうね。`,
+        zh: `學日文最重要的是持續不斷。只要每天花點時間，詩織保證你一年後一定能順利通過 N3！`
+      },
+      {
+        ja: `今日[きょう]の目標[もくひょう]、一緒[いっしょ]にクリアしましょう！`,
+        zh: `今天也要一起把六大任務打勾打滿喔！做完的話，晚上有特別的讚賞等著你呢～`
+      }
+    ];
+
+    const pick = greetings[Math.floor(Math.random() * greetings.length)];
+    if (bubbleJa) {
+      bubbleJa.innerHTML = window.FuriganaEngine ? window.FuriganaEngine.render(pick.ja) : pick.ja;
+    }
+    if (bubbleZh) {
+      bubbleZh.textContent = pick.zh;
+    }
+  },
+
+  /**
+   * 公會大廳與課表控制項
+   */
+  bindGuildHallControls() {
+    const prevBtn = document.getElementById("prevDayBtn");
+    const nextBtn = document.getElementById("nextDayBtn");
+    const jumpBtn = document.getElementById("jumpTodayBtn");
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        if (this.currentDayIndex > 1) {
+          this.currentDayIndex--;
+          this.renderTodayQuest(this.currentDayIndex);
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        if (this.currentDayIndex < this.data.schedule.length) {
+          this.currentDayIndex++;
+          this.renderTodayQuest(this.currentDayIndex);
+        }
+      });
+    }
+
+    if (jumpBtn) {
+      jumpBtn.addEventListener("click", () => {
+        this.currentDayIndex = this.saveData.progress.currentDay || 1;
+        this.renderTodayQuest(this.currentDayIndex);
+      });
+    }
+
+    // 詩織互動交談按鈕
+    const talkBtn = document.getElementById("hallTalkBtn");
+    if (talkBtn) {
+      talkBtn.addEventListener("click", () => {
+        this.greetPlayer();
+        if (window.ShioriAI) {
+          window.ShioriAI.updatePortrait("happy");
+          setTimeout(() => window.ShioriAI.updatePortrait("normal"), 2500);
+        }
+      });
+    }
+  },
+
+  /**
+   * 渲染指定天數的委託課表
+   */
+  renderTodayQuest(dayNum) {
+    const sched = this.data.schedule.find((s) => s.day === dayNum);
+    if (!sched) return;
+
+    // 標題與標籤
+    const dayBadge = document.getElementById("questDayBadge");
+    const chapBadge = document.getElementById("questChapterBadge");
+    const questTitle = document.getElementById("questMainTitle");
+    const dateText = document.getElementById("questDateText");
+
+    if (dayBadge) dayBadge.textContent = `Day ${sched.day} / 399`;
+    if (chapBadge) chapBadge.textContent = `${sched.stage}・${sched.chapter}`;
+    if (questTitle) questTitle.textContent = sched.title;
+    if (dateText) dateText.textContent = `${sched.date} (${sched.weekday})`;
+
+    // 出口仁課本與影片指引
+    const tbBox = document.getElementById("textbookGuideBox");
+    if (tbBox) {
+      let tbHtml = `
+        <div class="tb-line"><strong>📖 核心教材：</strong>${sched.textbookLesson || "五十音基礎指引 / 實力模擬"}</div>
+        <div class="tb-line"><strong>🎯 本日目標：</strong>${sched.coreGoal || "穩固日語各階段實力"}</div>
+      `;
+      if (sched.videoLesson) {
+        tbHtml += `
+          <div class="tb-line" style="margin-top:6px;">
+            <strong>🎬 推薦教學影片：</strong>出口仁老師《大家學標準日本語》第 ${sched.videoLesson} 課
+            <button class="task-action-btn" id="openVideoHintBtn" style="margin-left:8px;">觀看本機影片說明</button>
+          </div>
+        `;
+      }
+      tbBox.innerHTML = tbHtml;
+
+      const vBtn = document.getElementById("openVideoHintBtn");
+      if (vBtn) {
+        vBtn.addEventListener("click", () => this.showVideoHelpModal(sched.videoLesson));
+      }
+    }
+
+    // 6 大子委託任務清單
+    const taskList = document.getElementById("questTasksList");
+    if (taskList) {
+      taskList.innerHTML = "";
+      const dayTasks = this.saveData.progress.completedTasks[`day_${dayNum}`] || [];
+
+      sched.tasks.forEach((t) => {
+        const isCompleted = dayTasks.includes(t.id);
+        const item = document.createElement("div");
+        item.className = `task-item ${isCompleted ? "completed" : ""}`;
+        item.innerHTML = `
+          <div class="task-left">
+            <div class="task-check">${isCompleted ? "✓" : ""}</div>
+            <div>
+              <div class="task-name">${t.name}</div>
+              <div style="font-size:0.8rem;color:var(--text-sub);">${t.detail || ""}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="task-time">${t.duration}</span>
+            <button class="task-action-btn">${isCompleted ? "已完成" : "打勾完成"}</button>
+          </div>
+        `;
+
+        item.addEventListener("click", () => this.toggleTaskCompletion(dayNum, t.id, t.duration));
+        taskList.appendChild(item);
+      });
+    }
+
+    // 當日收錄單字與漢字預覽
+    this.renderDailyChips(sched);
+  },
+
+  /**
+   * 任務勾選與獎勵計算
+   */
+  toggleTaskCompletion(dayNum, taskId, durationStr) {
+    const key = `day_${dayNum}`;
+    if (!this.saveData.progress.completedTasks[key]) {
+      this.saveData.progress.completedTasks[key] = [];
+    }
+    const list = this.saveData.progress.completedTasks[key];
+    const idx = list.indexOf(taskId);
+
+    if (idx === -1) {
+      list.push(taskId);
+      // 依任務時長給予 EXP 與金幣
+      const minutes = parseInt(durationStr) || 20;
+      const gainExp = Math.round(minutes * 0.8);
+      const gainGold = Math.round(minutes * 0.5);
+      this.awardPlayer({ exp: gainExp, gold: gainGold, affection: 1 });
+      this.showToast(`✨ 任務完成！獲得 +${gainExp} EXP、+${gainGold} G！`, "success");
+    } else {
+      list.splice(idx, 1);
+    }
+
+    this.renderTodayQuest(dayNum);
+    this.saveProgress();
+  },
+
+  /**
+   * 渲染當日單字/漢字小卡
+   */
+  renderDailyChips(sched) {
+    const chipsContainer = document.getElementById("dailyChipsContainer");
+    if (!chipsContainer) return;
+    chipsContainer.innerHTML = "";
+
+    const vocabList = sched.vocabList || [];
+    const kanjiList = sched.kanjiList || [];
+
+    if (vocabList.length === 0 && kanjiList.length === 0) {
+      chipsContainer.innerHTML = `<span style="font-size:0.85rem;color:var(--text-muted);">本日為複習與實戰週，無新增獨立單字。</span>`;
+      return;
+    }
+
+    // 單字 Chips
+    vocabList.forEach((word) => {
+      const chip = document.createElement("span");
+      chip.className = "vocab-chip";
+      chip.innerHTML = `📘 ${word}`;
+      chip.addEventListener("click", () => this.openWordDetail(word));
+      chipsContainer.appendChild(chip);
+    });
+
+    // 漢字 Chips
+    kanjiList.forEach((kanji) => {
+      const chip = document.createElement("span");
+      chip.className = "kanji-chip";
+      chip.innerHTML = `🀄 ${kanji}`;
+      chip.addEventListener("click", () => this.openKanjiDetail(kanji));
+      chipsContainer.appendChild(chip);
+    });
+  },
+
+  /**
+   * 本機影片觀看教學彈窗
+   */
+  showVideoHelpModal(lessonNum) {
+    const content = `
+      <h3 style="color:var(--accent-gold-light);margin-bottom:12px;">🎬 出口仁老師《大家學標準日本語》第 ${lessonNum} 課</h3>
+      <p style="margin-bottom:12px;">
+        依照版權保護規範，影片檔案未上傳至雲端，已安全保存在您的個人電腦中：
+      </p>
+      <div style="background:var(--bg-primary);padding:10px;border-radius:6px;font-family:monospace;word-break:break-all;margin-bottom:14px;border:1px solid var(--border-subtle);">
+        C:\\Users\\s0987\\Desktop\\Nihongo_Benkyo\\大家學標準日本語_初級本\\lesson_vedio\\${lessonNum}.mp4
+      </div>
+      <p style="font-size:0.9rem;color:var(--text-sub);line-height:1.6;margin-bottom:16px;">
+        💡 <strong>觀看小秘訣：</strong>出口仁老師講解文法時，會將句型結構畫成簡單表格。觀看時請跟著老師<strong>「大聲開口覆誦三次」</strong>，效果會加倍顯著喔！
+      </p>
+      <div style="text-align:right;">
+        <button class="btn-talk" onclick="window.App.copyToClipboard('C:\\\\Users\\\\s0987\\\\Desktop\\\\Nihongo_Benkyo\\\\大家學標準日本語_初級本\\\\lesson_vedio\\\\${lessonNum}.mp4'); window.App.showToast('已複製影片路徑！可貼到播放軟體開啟', 'success');">複製影片本機路徑</button>
+      </div>
+    `;
+    this.openModal(content);
+  },
+
+  /**
+   * SRS 記憶抽認卡介面
+   */
+  renderSrsCard() {
+    if (!window.SRSManager) return;
+    const card = window.SRSManager.getCurrentCard();
+    const stats = window.SRSManager.getStats();
+
+    const statsEl = document.getElementById("srsStatsText");
+    const countBadge = document.getElementById("srsDueCountBadge");
+    if (statsEl) statsEl.textContent = `待複習：${stats.due} / 總收錄：${stats.total} (掌握：${stats.mastered})`;
+    if (countBadge) countBadge.textContent = `${stats.due} 張`;
+
+    const flashcardEl = document.getElementById("flashcardElement");
+    const frontWord = document.getElementById("cardFrontWord");
+    const frontSub = document.getElementById("cardFrontSub");
+    const backWord = document.getElementById("cardBackWord");
+    const backReading = document.getElementById("cardBackReading");
+    const backMeaning = document.getElementById("cardBackMeaning");
+    const backEx = document.getElementById("cardBackExample");
+
+    if (flashcardEl) flashcardEl.classList.remove("flipped");
+
+    if (!card) {
+      if (frontWord) frontWord.textContent = "🎉 今日複習完成！";
+      if (frontSub) frontSub.textContent = "所有待複習抽認卡皆已完成，詩織為你感到驕傲！";
+      return;
+    }
+
+    if (frontWord) frontWord.textContent = card.front;
+    if (frontSub) frontSub.textContent = card.subFront;
+    if (backWord) backWord.textContent = card.front;
+    if (backReading) backReading.textContent = card.reading;
+    if (backMeaning) backMeaning.textContent = card.meaning;
+    if (backEx) backEx.textContent = card.example || "";
+
+    // 翻牌事件綁定
+    if (flashcardEl && !flashcardEl.hasCardClickBound) {
+      flashcardEl.hasCardClickBound = true;
+      flashcardEl.addEventListener("click", () => {
+        flashcardEl.classList.toggle("flipped");
+        // 自動發音
+        const cur = window.SRSManager.getCurrentCard();
+        if (cur && window.FuriganaEngine) {
+          window.FuriganaEngine.speak(cur.reading || cur.front);
+        }
+      });
+    }
+
+    // 4 個評分按鈕綁定
+    const srsBtns = document.querySelectorAll(".srs-btn");
+    srsBtns.forEach((btn) => {
+      btn.onclick = () => {
+        const rating = parseInt(btn.getAttribute("data-grade"));
+        window.SRSManager.gradeCurrentCard(rating);
+        this.saveData.srs = { cards: window.SRSManager.getSavedCardsData() };
+        this.awardPlayer({ exp: 5, gold: 2 });
+        this.renderSrsCard();
+      };
+    });
+
+    // 等級篩選按鈕
+    const srsFilterBtns = document.querySelectorAll(".srs-filter-btn");
+    srsFilterBtns.forEach((btn) => {
+      btn.onclick = () => {
+        srsFilterBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        window.SRSManager.setFilter(btn.getAttribute("data-filter"));
+        this.renderSrsCard();
+      };
+    });
+  },
+
+  /**
+   * 詩織櫃台對話介面 (AI Tutor & Chat)
+   */
+  bindChatEvents() {
+    const inputEl = document.getElementById("shioriChatInput");
+    const sendBtn = document.getElementById("shioriSendBtn");
+    const openGraderBtn = document.getElementById("openWritingGraderBtn");
+
+    const doSend = async () => {
+      const text = inputEl.value.trim();
+      if (!text) return;
+      inputEl.value = "";
+
+      this.appendChatMessage("user", text);
+
+      // 詩織思考中
+      const tempId = this.appendChatMessage("shiori", "詩織正在為你思考中，請稍候片刻……");
+
+      const apiKey = this.settings.geminiApiKey;
+      const model = this.settings.geminiModel || "gemini-2.5-flash";
+
+      const res = await window.ShioriAI.sendMessage(text, apiKey, model);
+
+      // 更新訊息內容與立繪
+      this.updateChatMessage(tempId, res.formattedHtml || res.rawText);
+      window.ShioriAI.updatePortrait(res.mood || "normal");
+
+      // 增加好感度
+      this.awardPlayer({ exp: 8, affection: 1 });
+    };
+
+    if (sendBtn) sendBtn.addEventListener("click", doSend);
+    if (inputEl) {
+      inputEl.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") doSend();
+      });
+    }
+
+    if (openGraderBtn) {
+      openGraderBtn.addEventListener("click", () => this.showWritingGraderModal());
+    }
+  },
+
+  appendChatMessage(sender, contentHtml) {
+    const chatContainer = document.getElementById("shioriChatMessages");
+    if (!chatContainer) return null;
+
+    const id = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const bubble = document.createElement("div");
+    bubble.id = id;
+    bubble.className = `msg-bubble ${sender}`;
+    bubble.innerHTML = contentHtml;
+
+    chatContainer.appendChild(bubble);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    return id;
+  },
+
+  updateChatMessage(id, newHtml) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = newHtml;
+      const chatContainer = document.getElementById("shioriChatMessages");
+      if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  },
+
+  /**
+   * 每日三句造句批改彈窗
+   */
+  showWritingGraderModal() {
+    const content = `
+      <h3 style="color:var(--accent-gold-light);margin-bottom:8px;">✍️ 每日三句造句批改（詩織親自審查）</h3>
+      <p style="font-size:0.9rem;color:var(--text-sub);margin-bottom:14px;">
+        請依今天學到的文法與單字，嘗試寫出 3 個日文句子（漢字可以寫漢字，也可以寫平假名）：
+      </p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+        <input type="text" id="gradeSent1" class="chat-input" placeholder="例：わたしは がくせいです。" style="width:100%;">
+        <input type="text" id="gradeSent2" class="chat-input" placeholder="例：あした としょかんへ いきます。" style="width:100%;">
+        <input type="text" id="gradeSent3" class="chat-input" placeholder="例：日本語を べんきょうします。" style="width:100%;">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn-talk" id="submitGradingBtn">送出給詩織批改 ➔</button>
+      </div>
+      <div id="gradingResultArea" style="margin-top:14px;max-height:260px;overflow-y:auto;"></div>
+    `;
+
+    this.openModal(content);
+
+    const submitBtn = document.getElementById("submitGradingBtn");
+    if (submitBtn) {
+      submitBtn.onclick = async () => {
+        const s1 = document.getElementById("gradeSent1").value.trim();
+        const s2 = document.getElementById("gradeSent2").value.trim();
+        const s3 = document.getElementById("gradeSent3").value.trim();
+
+        if (!s1 && !s2 && !s3) {
+          this.showToast("請至少填寫一個造句喔！", "info");
+          return;
+        }
+
+        const resArea = document.getElementById("gradingResultArea");
+        resArea.innerHTML = `<p style="color:var(--accent-gold);text-align:center;">詩織正在戴上眼鏡為你批改作業中……☕</p>`;
+
+        const apiKey = this.settings.geminiApiKey;
+        const model = this.settings.geminiModel || "gemini-2.5-flash";
+
+        const res = await window.ShioriAI.gradeDailySentences(s1, s2, s3, apiKey, model);
+        resArea.innerHTML = `
+          <div style="background:var(--bg-primary);padding:14px;border-radius:8px;border:1px solid var(--border-gold);line-height:1.7;">
+            ${res.formattedHtml || res.rawText}
+          </div>
+        `;
+        window.ShioriAI.updatePortrait(res.mood || "happy");
+        this.awardPlayer({ exp: 25, gold: 15, affection: 3 });
+      };
+    }
+  },
+
+  /**
+   * 冒險者圖鑑 (Compendium)
+   */
+  bindCompendium() {
+    const tabs = document.querySelectorAll(".c-tab");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        this.renderCompendium(tab.getAttribute("data-category"));
+      });
+    });
+
+    const searchInput = document.getElementById("compendiumSearch");
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        const activeTab = document.querySelector(".c-tab.active");
+        const cat = activeTab ? activeTab.getAttribute("data-category") : "all";
+        this.renderCompendium(cat, searchInput.value.trim().toLowerCase());
+      });
+    }
+  },
+
+  renderCompendium(category = "all", query = "") {
+    const deck = document.getElementById("cardsDeckGrid");
+    if (!deck) return;
+    deck.innerHTML = "";
+
+    let items = [];
+
+    if (category === "all" || category === "kana") {
+      this.data.kana.forEach((k) => {
+        items.push({
+          type: "kana",
+          title: `${k.hiragana} (${k.katakana})`,
+          sub: `[${k.romaji}]`,
+          desc: k.example || "五十音基礎假名",
+          tier: "tier-1",
+          raw: k
+        });
+      });
+    }
+
+    if (category === "all" || category === "n5" || category === "n4" || category === "n3") {
+      const targetLvl = category.toUpperCase();
+
+      // 單字
+      this.data.vocab
+        .filter((v) => category === "all" || v.level === targetLvl)
+        .slice(0, 150) // 限制渲染數量保持效能
+        .forEach((v) => {
+          let tier = "tier-1";
+          if (v.level === "N4") tier = "tier-2";
+          if (v.level === "N3") tier = "tier-3";
+
+          items.push({
+            type: "vocab",
+            title: v.word,
+            sub: `【${v.reading}】${v.pos ? "[" + v.pos + "]" : ""}`,
+            desc: v.meaningZh,
+            tier,
+            raw: v
+          });
+        });
+
+      // 漢字
+      this.data.kanji
+        .filter((k) => category === "all" || k.level === targetLvl)
+        .slice(0, 80)
+        .forEach((k) => {
+          items.push({
+            type: "kanji",
+            title: k.kanji,
+            sub: `音：${k.onyomi || "—"} / 訓：${k.kunyomi || "—"}`,
+            desc: k.meaningZh,
+            tier: "tier-2",
+            raw: k
+          });
+        });
+
+      // 文法
+      this.data.grammar
+        .filter((g) => category === "all" || g.level === targetLvl)
+        .slice(0, 50)
+        .forEach((g) => {
+          items.push({
+            type: "grammar",
+            title: g.title,
+            sub: `[${g.level} 文法]`,
+            desc: g.meaningZh,
+            tier: "tier-3",
+            raw: g
+          });
+        });
+    }
+
+    // 搜尋過濾
+    if (query) {
+      items = items.filter(
+        (it) =>
+          it.title.toLowerCase().includes(query) ||
+          it.sub.toLowerCase().includes(query) ||
+          it.desc.toLowerCase().includes(query)
+      );
+    }
+
+    // 渲染卡片
+    items.slice(0, 120).forEach((item) => {
+      const card = document.createElement("div");
+      card.className = `compendium-card ${item.tier}`;
+      card.innerHTML = `
+        <div style="font-size:1.2rem;font-weight:bold;color:var(--accent-gold-light);margin-bottom:4px;">${item.title}</div>
+        <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:6px;">${item.sub}</div>
+        <div style="font-size:0.85rem;color:#fff;">${item.desc}</div>
+      `;
+      card.addEventListener("click", () => {
+        if (item.type === "vocab") this.openWordDetail(item.raw.word);
+        else if (item.type === "kanji") this.openKanjiDetail(item.raw.kanji);
+        else if (item.type === "kana") this.openKanaDetail(item.raw);
+        else if (item.type === "grammar") this.openGrammarDetail(item.raw);
+      });
+      deck.appendChild(card);
+    });
+  },
+
+  /**
+   * 字典與詳情彈窗
+   */
+  openWordDetail(wordStr) {
+    const v = this.data.vocab.find((x) => x.word === wordStr || x.reading === wordStr);
+    if (!v) return;
+
+    let exHtml = "";
+    if (v.exampleSentence) {
+      const rubyJa = window.FuriganaEngine
+        ? window.FuriganaEngine.render(v.exampleSentence.ja)
+        : v.exampleSentence.ja;
+      exHtml = `
+        <div style="background:var(--bg-primary);padding:10px 14px;border-radius:6px;border-left:3px solid var(--accent-blue);margin-top:12px;">
+          <div style="font-size:1.05rem;line-height:1.8;margin-bottom:4px;">${rubyJa}</div>
+          <div style="font-size:0.88rem;color:var(--text-sub);">${v.exampleSentence.zh || ""}</div>
+        </div>
+      `;
+    }
+
+    const content = `
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-subtle);padding-bottom:10px;margin-bottom:14px;">
+        <div>
+          <span style="font-size:1.8rem;font-weight:bold;color:var(--accent-gold-light);">${v.word}</span>
+          <span style="font-size:1.1rem;color:var(--text-sub);margin-left:8px;">【${v.reading}】</span>
+          <span style="font-size:0.8rem;background:#34495e;padding:2px 6px;border-radius:4px;margin-left:6px;">${v.level}</span>
+        </div>
+        <button class="icon-btn" onclick="window.FuriganaEngine.speak('${v.reading || v.word}')" style="font-size:1.2rem;padding:6px 12px;">🔊 聆聽</button>
+      </div>
+      <div style="font-size:1.1rem;color:#fff;margin-bottom:8px;"><strong>中文解釋：</strong>${v.meaningZh}</div>
+      <div style="font-size:0.9rem;color:var(--text-sub);margin-bottom:10px;"><strong>詞性分類：</strong>${v.pos || "單字"}</div>
+      ${exHtml}
+    `;
+    this.openModal(content);
+  },
+
+  openKanjiDetail(kanjiChar) {
+    const k = this.data.kanji.find((x) => x.kanji === kanjiChar);
+    if (!k) return;
+
+    const content = `
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-subtle);padding-bottom:10px;margin-bottom:14px;">
+        <span style="font-size:2.8rem;font-weight:bold;color:var(--accent-gold-light);">${k.kanji}</span>
+        <div style="text-align:right;">
+          <div style="font-size:0.9rem;color:var(--text-sub);">筆畫數：${k.strokes} 畫</div>
+          <div style="font-size:0.8rem;background:#27ae60;display:inline-block;padding:2px 8px;border-radius:4px;margin-top:4px;">${k.level}</div>
+        </div>
+      </div>
+      <div style="font-size:1.05rem;line-height:1.8;margin-bottom:10px;">
+        <div><strong>音讀 (On)：</strong>${k.onyomi || "—"}</div>
+        <div><strong>訓讀 (Kun)：</strong>${k.kunyomi || "—"}</div>
+        <div><strong>中文意義：</strong>${k.meaningZh}</div>
+      </div>
+      <div style="margin-top:12px;background:var(--bg-primary);padding:10px;border-radius:6px;">
+        <strong>常見造詞範例：</strong> ${(k.examples || []).join("、")}
+      </div>
+    `;
+    this.openModal(content);
+  },
+
+  openKanaDetail(kana) {
+    const content = `
+      <div style="text-align:center;padding:10px 0;">
+        <div style="font-size:3.5rem;font-weight:bold;color:var(--accent-gold-light);">${kana.hiragana}</div>
+        <div style="font-size:1.8rem;color:var(--text-sub);margin-bottom:10px;">片假名：${kana.katakana}</div>
+        <div style="font-size:1.2rem;margin-bottom:14px;">羅馬拼音：<strong>[${kana.romaji}]</strong></div>
+        <div style="font-size:0.95rem;color:var(--text-muted);">${kana.example || ""}</div>
+        <button class="btn-talk" onclick="window.FuriganaEngine.speak('${kana.hiragana}')" style="margin-top:16px;">🔊 聆聽標準發音</button>
+      </div>
+    `;
+    this.openModal(content);
+  },
+
+  openGrammarDetail(g) {
+    const content = `
+      <h3 style="color:var(--accent-gold-light);margin-bottom:8px;">【${g.title}】(${g.level})</h3>
+      <div style="font-size:1.05rem;color:#fff;margin-bottom:10px;"><strong>意義：</strong>${g.meaningZh}</div>
+      <div style="font-size:0.92rem;color:var(--text-sub);line-height:1.6;margin-bottom:14px;">${g.explanation}</div>
+      <div style="background:var(--bg-primary);padding:12px;border-radius:6px;border-left:3px solid var(--border-gold);">
+        <div style="font-size:1.05rem;margin-bottom:4px;">${g.example?.ja ? window.FuriganaEngine.render(g.example.ja) : ""}</div>
+        <div style="font-size:0.88rem;color:var(--text-sub);">${g.example?.zh || ""}</div>
+      </div>
+    `;
+    this.openModal(content);
+  },
+
+  /**
+   * 設定面板與存檔同步 (Settings & Sync)
+   */
+  bindSettings() {
+    const saveBtn = document.getElementById("saveSettingsBtn");
+    const pushBtn = document.getElementById("syncPushBtn");
+    const fetchBtn = document.getElementById("syncFetchBtn");
+    const exportBtn = document.getElementById("exportSaveBtn");
+    const importInput = document.getElementById("importSaveFile");
+
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        this.settings.geminiApiKey = document.getElementById("settingGeminiKey").value.trim();
+        this.settings.geminiModel = document.getElementById("settingGeminiModel").value;
+        this.settings.githubPat = document.getElementById("settingGithubPat").value.trim();
+        this.settings.githubRepo = document.getElementById("settingGithubRepo").value.trim();
+
+        window.SyncManager.saveSettings(this.settings);
+        this.showToast("設定已儲存成功！", "success");
+      });
+    }
+
+    if (pushBtn) {
+      pushBtn.addEventListener("click", async () => {
+        pushBtn.disabled = true;
+        pushBtn.textContent = "上傳同步中...";
+        try {
+          await window.SyncManager.pushToGitHub(
+            this.saveData,
+            this.settings.githubPat,
+            this.settings.githubRepo
+          );
+          this.showToast("已成功備份存檔至 GitHub 私人倉庫！", "success");
+        } catch (err) {
+          this.showToast(`同步失敗：${err.message}`, "error");
+        } finally {
+          pushBtn.disabled = false;
+          pushBtn.textContent = "備份存檔至 GitHub";
+        }
+      });
+    }
+
+    if (fetchBtn) {
+      fetchBtn.addEventListener("click", async () => {
+        if (!confirm("確定要從 GitHub 下載雲端存檔嗎？本機目前的未備份進度將被覆蓋。")) return;
+        fetchBtn.disabled = true;
+        fetchBtn.textContent = "下載還原中...";
+        try {
+          const res = await window.SyncManager.fetchFromGitHub(
+            this.settings.githubPat,
+            this.settings.githubRepo
+          );
+          this.saveData = res.save;
+          this.showToast("已成功從 GitHub 還原最新存檔！", "success");
+          setTimeout(() => location.reload(), 1000);
+        } catch (err) {
+          this.showToast(`下載失敗：${err.message}`, "error");
+        } finally {
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = "從 GitHub 下載存檔";
+        }
+      });
+    }
+
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        window.SyncManager.exportToFile(this.saveData);
+      });
+    }
+
+    if (importInput) {
+      importInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          try {
+            this.saveData = await window.SyncManager.importFromFile(file);
+            this.showToast("存檔匯入成功！即將重新載入頁面...", "success");
+            setTimeout(() => location.reload(), 1200);
+          } catch (err) {
+            this.showToast(`匯入失敗：${err.message}`, "error");
+          }
+        }
+      });
+    }
+  },
+
+  fillSettingsForm() {
+    const kInput = document.getElementById("settingGeminiKey");
+    const mSelect = document.getElementById("settingGeminiModel");
+    const pInput = document.getElementById("settingGithubPat");
+    const rInput = document.getElementById("settingGithubRepo");
+
+    if (kInput) kInput.value = this.settings.geminiApiKey || "";
+    if (mSelect) mSelect.value = this.settings.geminiModel || "gemini-2.5-flash";
+    if (pInput) pInput.value = this.settings.githubPat || "";
+    if (rInput) rInput.value = this.settings.githubRepo || "snake19910808/nihongo-save";
+  },
+
+  saveProgress() {
+    window.SyncManager.saveLocal(this.saveData);
+  },
+
+  /**
+   * 戰鬥勝利結算回調
+   */
+  onBattleVictory(rewards) {
+    this.awardPlayer(rewards);
+  },
+
+  /**
+   * 通用彈窗與提示訊息 (Modal & Toast)
+   */
+  bindModal() {
+    const overlay = document.getElementById("appModalOverlay");
+    const closeBtn = document.getElementById("modalCloseBtn");
+    if (closeBtn && overlay) {
+      closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) overlay.classList.remove("active");
+      });
+    }
+  },
+
+  openModal(contentHtml) {
+    const overlay = document.getElementById("appModalOverlay");
+    const body = document.getElementById("modalDynamicBody");
+    if (overlay && body) {
+      body.innerHTML = contentHtml;
+      overlay.classList.add("active");
+    }
+  },
+
+  closeModal() {
+    const overlay = document.getElementById("appModalOverlay");
+    if (overlay) overlay.classList.remove("active");
+  },
+
+  showToast(msg, type = "info") {
+    let toast = document.getElementById("appToast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "appToast";
+      toast.style.position = "fixed";
+      toast.style.bottom = "24px";
+      toast.style.left = "50%";
+      toast.style.transform = "translateX(-50%)";
+      toast.style.padding = "10px 20px";
+      toast.style.borderRadius = "20px";
+      toast.style.fontWeight = "bold";
+      toast.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
+      toast.style.zIndex = "9999";
+      toast.style.transition = "all 0.3s ease";
+      document.body.appendChild(toast);
+    }
+
+    if (type === "success" || type === "victory") {
+      toast.style.background = "#27ae60";
+      toast.style.color = "#fff";
+    } else if (type === "error") {
+      toast.style.background = "#c0392b";
+      toast.style.color = "#fff";
+    } else {
+      toast.style.background = "#2c3e50";
+      toast.style.color = "#f1c40f";
+    }
+
+    toast.textContent = msg;
+    toast.style.opacity = "1";
+    toast.style.visibility = "visible";
+
+    clearTimeout(toast.timeoutId);
+    toast.timeoutId = setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.visibility = "hidden";
+    }, 3000);
+  },
+
+  copyToClipboard(text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+  }
+};
+
+window.App = App;
+window.addEventListener("DOMContentLoaded", () => App.init());
