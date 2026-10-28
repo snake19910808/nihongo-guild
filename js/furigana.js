@@ -74,14 +74,29 @@ const FuriganaEngine = {
   },
 
   currentAudio: null,
-  voicevoxSpeakerId: 0, // 預設 0: 瀏覽器動漫高甜少女音 (1.38 Pitch) 零延遲且穩定絕不跑掉
+  voicevoxSpeakerId: 15, // 預設 15: 九州そら（あまあま / 溫柔撒嬌女僕音・推薦主角聲線）
+
+  // 本機高品質預錄女僕音檔對照表 (0 秒零延遲、免網路、絕無 429 限制)
+  localAudioMap: {
+    "冒険者さん、今日も公会へようこそ！": "assets/audio/greeting_1.mp3",
+    "焦らず、毎日少しずつ続けましょうね。": "assets/audio/greeting_2.mp3",
+    "今日の目標、一緒にクリアしましょう！": "assets/audio/greeting_3.mp3",
+    "頑張っているあなたを、詩織はずっと応援していますよ。": "assets/audio/greeting_4.mp3",
+    "疲れたら、いつでも公会でお茶を飲んで休んでくださいね。": "assets/audio/greeting_5.mp3",
+    "今日も新しい言葉との出会い、楽しみですね！": "assets/audio/greeting_6.mp3",
+    "一歩一歩の積み重ねが、大きな力になりますよ。": "assets/audio/greeting_7.mp3",
+    "質問があれば、いつでもカウンターで声をかけてくださいね。": "assets/audio/greeting_8.mp3",
+    "冒険者さん、今日も一緒に頑張りましょうね！": "assets/audio/greeting_test.mp3"
+  },
+  dynamicAudioCache: new Map(),
 
   setVoiceStyle(speakerId) {
-    this.voicevoxSpeakerId = parseInt(speakerId) || 0;
+    this.voicevoxSpeakerId = parseInt(speakerId);
+    if (isNaN(this.voicevoxSpeakerId)) this.voicevoxSpeakerId = 15;
   },
 
   /**
-   * 詩織日語語音朗讀核心 (預設直接調用動漫高甜調諧音，零秒延遲且穩定絕不跑掉)
+   * 詩織日語語音朗讀核心 (優先本機高品質女僕音檔 ➔ VOICEVOX 聲優音 ➔ 離線調諧音)
    */
   speak(text, options = {}) {
     if (!text) return;
@@ -97,15 +112,23 @@ const FuriganaEngine = {
       } catch (e) {}
     }
 
-    // 若使用者主動在設定選擇了 VOICEVOX 聲線 (> 0) 才嘗試網路合成
+    // 1. 若命中預錄高品質女僕音檔，直接 0 秒離線播放，100% 絕不延遲與報錯
+    const localFile = this.localAudioMap[cleanText];
+    if (localFile) {
+      this.playAudioFile(localFile);
+      return;
+    }
+
+    // 2. 若使用者選擇了 VOICEVOX 聲線 (> 0，如 15 號女僕音)，調用網路合成並快取
     if (this.voicevoxSpeakerId && this.voicevoxSpeakerId > 0) {
-      this.playVoicevox(cleanText).catch(() => {
+      this.playVoicevox(cleanText).catch((err) => {
+        console.warn("VOICEVOX 網路繁忙，平滑降級至調諧語音：", err);
         this.speakBrowser(cleanText, options);
       });
       return;
     }
 
-    // 預設一律直接以瀏覽器動漫少女調諧音立即發音 (同步觸發，零延遲，絕不跑掉)
+    // 3. 離線備用：瀏覽器調諧音
     this.speakBrowser(cleanText, options);
   },
 
@@ -207,28 +230,72 @@ const FuriganaEngine = {
   },
 
   /**
-   * 調用 VOICEVOX 線上日式動漫角色語音 (備選)
+   * 播放指定音訊 URL 或本地音檔
+   */
+  playAudioFile(url) {
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      this.currentAudio = audio;
+      audio.onplay = () => resolve(true);
+      audio.onerror = () => resolve(false);
+      audio.play().catch(() => resolve(false));
+      setTimeout(() => resolve(true), 2500);
+    });
+  },
+
+  /**
+   * 調用 VOICEVOX 線上日式動漫角色語音 (含快取與 429 降級保護)
    */
   async playVoicevox(text) {
     const shortText = text.slice(0, 120);
-    const speakerId = this.voicevoxSpeakerId || 17;
+    const speakerId = this.voicevoxSpeakerId || 15;
+    const cacheKey = `${speakerId}_${shortText}`;
+
+    // 1. 優先檢查記憶體快取，重複對話 0 秒秒播
+    if (this.dynamicAudioCache.has(cacheKey)) {
+      const cachedUrl = this.dynamicAudioCache.get(cacheKey);
+      return this.playAudioFile(cachedUrl);
+    }
+
     const url = `https://api.tts.quest/v3/voicevox/synthesis?text=${encodeURIComponent(shortText)}&speaker=${speakerId}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
 
-    const res = await fetch(url, { signal: controller.signal });
+    let res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
-    if (!res.ok) throw new Error("VOICEVOX 請求失敗");
+
+    if (!res.ok) {
+      if (res.status === 429) {
+        // 若遇頻率限制等待 2 秒重試一次
+        await new Promise((r) => setTimeout(r, 2000));
+        res = await fetch(url);
+      }
+      if (!res.ok) throw new Error(`VOICEVOX 請求失敗 (${res.status})`);
+    }
 
     const data = await res.json();
-    if (!data.success && !data.mp3DownloadUrl) throw new Error("VOICEVOX 未返回音訊");
+    if (!data.success && !data.mp3DownloadUrl) {
+      if (data.errorMessage === 429) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const retryRes = await fetch(url);
+        const retryData = await retryRes.json();
+        if (retryData.success && retryData.mp3DownloadUrl) {
+          return this.handleAudioReady(retryData, cacheKey);
+        }
+      }
+      throw new Error("VOICEVOX 伺服器忙碌中");
+    }
 
+    return this.handleAudioReady(data, cacheKey);
+  },
+
+  async handleAudioReady(data, cacheKey) {
     const mp3Url = data.mp3DownloadUrl || data.wavDownloadUrl;
     const statusUrl = data.audioStatusUrl;
 
     if (statusUrl) {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 6; i++) {
         try {
           const sRes = await fetch(statusUrl);
           const sData = await sRes.json();
@@ -238,14 +305,11 @@ const FuriganaEngine = {
       }
     }
 
-    return new Promise((resolve, reject) => {
-      const audio = new Audio(mp3Url);
-      this.currentAudio = audio;
-      audio.onplay = () => resolve(true);
-      audio.onerror = () => reject(new Error("音訊播放錯誤"));
-      audio.play().catch((err) => reject(err));
-      setTimeout(() => resolve(true), 1500);
-    });
+    if (cacheKey && mp3Url) {
+      this.dynamicAudioCache.set(cacheKey, mp3Url);
+    }
+
+    return this.playAudioFile(mp3Url);
   },
 
   /**

@@ -1194,7 +1194,8 @@ const App = {
     const testVoiceBtn = document.getElementById("testVoiceBtn");
     if (testVoiceBtn) {
       testVoiceBtn.addEventListener("click", () => {
-        const v = parseInt(document.getElementById("settingVoiceStyle")?.value, 10) || 0;
+        const val = parseInt(document.getElementById("settingVoiceStyle")?.value, 10);
+        const v = isNaN(val) ? 15 : val;
         if (window.FuriganaEngine) {
           window.FuriganaEngine.setVoiceStyle(v);
           window.FuriganaEngine.speak("冒険者[ぼうけんしゃ]さん、今日[きょう]も一緒[いっしょ]に頑張[がんば]りましょうね！");
@@ -1207,7 +1208,8 @@ const App = {
         this.settings.geminiApiKey = document.getElementById("settingGeminiKey").value.trim();
         this.settings.geminiModel = document.getElementById("settingGeminiModel").value || "gemini-3.5-flash-lite";
         const voiceSelect = document.getElementById("settingVoiceStyle");
-        const voiceStyle = voiceSelect ? (parseInt(voiceSelect.value, 10) || 0) : 0;
+        const val = voiceSelect ? parseInt(voiceSelect.value, 10) : 15;
+        const voiceStyle = isNaN(val) ? 15 : val;
         this.settings.voiceStyle = voiceStyle;
         if (window.FuriganaEngine) {
           window.FuriganaEngine.setVoiceStyle(voiceStyle);
@@ -1293,7 +1295,7 @@ const App = {
 
     if (kInput) kInput.value = this.settings.geminiApiKey || "";
     if (mSelect) mSelect.value = this.settings.geminiModel || "gemini-3.5-flash-lite";
-    const currentVoice = (this.settings.voiceStyle !== undefined && this.settings.voiceStyle !== null) ? this.settings.voiceStyle : 0;
+    const currentVoice = (this.settings.voiceStyle !== undefined && this.settings.voiceStyle !== null) ? this.settings.voiceStyle : 15;
     if (vSelect) vSelect.value = currentVoice;
     if (pInput) pInput.value = this.settings.githubPat || "";
     if (rInput) rInput.value = this.settings.githubRepo || "snake19910808/nihongo-save";

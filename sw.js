@@ -1,5 +1,5 @@
 // Service Worker for Nihongo Guild PWA
-const CACHE_NAME = "nihongo-guild-v21";
+const CACHE_NAME = "nihongo-guild-v22";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -26,6 +26,15 @@ const STATIC_ASSETS = [
   "./assets/monster_golem.jpg",
   "./assets/monster_dragon.jpg",
   "./assets/monster_demon_king.jpg",
+  "./assets/audio/greeting_1.mp3",
+  "./assets/audio/greeting_2.mp3",
+  "./assets/audio/greeting_3.mp3",
+  "./assets/audio/greeting_4.mp3",
+  "./assets/audio/greeting_5.mp3",
+  "./assets/audio/greeting_6.mp3",
+  "./assets/audio/greeting_7.mp3",
+  "./assets/audio/greeting_8.mp3",
+  "./assets/audio/greeting_test.mp3",
   "./data/kana.json",
   "./data/kanji.json",
   "./data/vocab.json",
