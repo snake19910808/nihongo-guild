@@ -232,13 +232,14 @@ const App = {
     this.saveProgress();
   },
 
+  currentGreeting: null,
+
   /**
    * 詩織大廳迎賓話語
    */
-  greetPlayer() {
+  greetPlayer(triggerVoice = false) {
     const bubbleZh = document.getElementById("shioriHallDialogueZh");
     const bubbleJa = document.getElementById("shioriHallDialogueJa");
-    const p = this.saveData.player;
 
     const greetings = [
       {
@@ -252,15 +253,46 @@ const App = {
       {
         ja: `今日[きょう]の目標[もくひょう]、一緒[いっしょ]にクリアしましょう！`,
         zh: `今天也要一起把六大任務打勾打滿喔！做完的話，晚上有特別的讚賞等著你呢～`
+      },
+      {
+        ja: `頑張[がんば]っているあなたを、詩織[しおり]はずっと応援[おうえん]していますよ。`,
+        zh: `看著你每天努力不懈的身影，詩織一直都在心裡為你默默加油喔！`
+      },
+      {
+        ja: `疲[つか]れたら、いつでも公会[こうかい]でお茶[ちゃ]を飲[の]んで休[やす]んでくださいね。`,
+        zh: `讀書累了的話，隨時來公會吧！我為你泡一杯香醇熱茶，放鬆一下再出發。`
+      },
+      {
+        ja: `今日[きょう]も新[あたら]しい言葉[ことば]との出会[であ]い、楽[たの]しみですね！`,
+        zh: `今天又會遇見哪些有趣的日文單字呢？光是想像就讓人期待呢！`
+      },
+      {
+        ja: `一歩[いっぽ]一歩[いっぽ]の積[つ]み重[かさ]ねが、大[おお]きな力[ちから]になりますよ。`,
+        zh: `不要小看每天累積的一小步，這都會變成你日後打倒強大考題的魔力喔！`
+      },
+      {
+        ja: `質問[しつもん]があれば、いつでもカウンターで声[こえ]をかけてくださいね。`,
+        zh: `如果有不懂的文法或單字，隨時點擊「☕ 前往櫃台聊天」，我會耐心為你解答的！`
       }
     ];
 
-    const pick = greetings[Math.floor(Math.random() * greetings.length)];
+    let pick = greetings[Math.floor(Math.random() * greetings.length)];
+    if (this.currentGreeting && greetings.length > 1) {
+      while (pick.ja === this.currentGreeting.ja) {
+        pick = greetings[Math.floor(Math.random() * greetings.length)];
+      }
+    }
+    this.currentGreeting = pick;
+
     if (bubbleJa) {
       bubbleJa.innerHTML = window.FuriganaEngine ? window.FuriganaEngine.render(pick.ja) : pick.ja;
     }
     if (bubbleZh) {
       bubbleZh.textContent = pick.zh;
+    }
+
+    if (triggerVoice && window.FuriganaEngine) {
+      window.FuriganaEngine.speak(pick.ja);
     }
   },
 
@@ -297,14 +329,47 @@ const App = {
       });
     }
 
-    // 詩織互動交談按鈕
+    // 1. 詩織打氣互動按鈕（更換問候 + 語音朗讀）
     const talkBtn = document.getElementById("hallTalkBtn");
     if (talkBtn) {
       talkBtn.addEventListener("click", () => {
-        this.greetPlayer();
+        this.greetPlayer(true);
         if (window.ShioriAI) {
           window.ShioriAI.updatePortrait("happy");
-          setTimeout(() => window.ShioriAI.updatePortrait("normal"), 2500);
+          setTimeout(() => window.ShioriAI.updatePortrait("normal"), 3000);
+        }
+      });
+    }
+
+    // 2. 獨立日語語音朗讀按鈕
+    const voiceBtn = document.getElementById("shioriHallVoiceBtn");
+    if (voiceBtn) {
+      voiceBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (this.currentGreeting && window.FuriganaEngine) {
+          window.FuriganaEngine.speak(this.currentGreeting.ja);
+        } else {
+          this.greetPlayer(true);
+        }
+      });
+    }
+
+    // 3. 前往專屬櫃台聊天室按鈕
+    const goChatBtn = document.getElementById("hallGoChatBtn");
+    if (goChatBtn) {
+      goChatBtn.addEventListener("click", () => {
+        this.switchTab("tab-shiori");
+      });
+    }
+
+    // 4. 點擊對話氣泡本體也可重播語音
+    const bubbleEl = document.getElementById("shioriBubble");
+    if (bubbleEl) {
+      bubbleEl.addEventListener("click", (e) => {
+        // 若點擊的是語音按鈕本身則不重複觸發
+        if (e.target.closest("#shioriHallVoiceBtn")) return;
+        if (this.currentGreeting && window.FuriganaEngine) {
+          window.FuriganaEngine.speak(this.currentGreeting.ja);
         }
       });
     }

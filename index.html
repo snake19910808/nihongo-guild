@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
 
@@ -109,13 +109,18 @@
           </div>
 
           <!-- 詩織親切對話氣泡 -->
-          <div class="shiori-dialogue-bubble">
+          <div class="shiori-dialogue-bubble" id="shioriBubble" title="點擊可重播日語語音">
+            <div class="dialogue-header">
+              <span class="bubble-tag">🌸 公會接待日常</span>
+              <button class="voice-btn" id="shioriHallVoiceBtn" title="朗讀日語語音">🔊 語音朗讀</button>
+            </div>
             <div class="dialogue-text" id="shioriHallDialogueJa">冒険者[ぼうけんしゃ]さん、今日[きょう]も公会[こうかい]へようこそ！</div>
             <div class="dialogue-zh" id="shioriHallDialogueZh">冒險者，今天也歡迎來到公會！今天的委託清單已經準備好了喔，一步一步踏實前進吧！</div>
           </div>
 
           <div class="shiori-actions">
-            <button class="btn-talk" id="hallTalkBtn">💬 與詩織聊聊天</button>
+            <button class="btn-talk" id="hallTalkBtn" title="隨機換一句問候並用語音朗讀">🌸 聽詩織打氣 (語音)</button>
+            <button class="btn-chat-counter" id="hallGoChatBtn" title="前往專屬櫃台與詩織打字對話、批改造句">☕ 前往櫃台聊天</button>
           </div>
         </div>
 
@@ -397,12 +402,12 @@
   </div>
 
   <!-- JavaScript 核心腳本 -->
-  <script src="js/furigana.js?v=5"></script>
-  <script src="js/sync.js?v=5"></script>
-  <script src="js/srs.js?v=5"></script>
-  <script src="js/battle.js?v=5"></script>
-  <script src="js/shiori_ai.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/furigana.js?v=7"></script>
+  <script src="js/sync.js?v=7"></script>
+  <script src="js/srs.js?v=7"></script>
+  <script src="js/battle.js?v=7"></script>
+  <script src="js/shiori_ai.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 
 </body>
 </html>

@@ -393,6 +393,40 @@ body {
   padding-top: 6px;
 }
 
+.dialogue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.bubble-tag {
+  font-size: 0.75rem;
+  color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.voice-btn {
+  background: transparent;
+  border: 1px solid var(--border-gold);
+  color: var(--accent-gold);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.voice-btn:hover {
+  background: var(--accent-gold);
+  color: #120e1a;
+}
+
 .shiori-actions {
   display: flex;
   gap: 8px;
@@ -408,11 +442,29 @@ body {
   padding: 8px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.1s;
 }
 
 .btn-talk:hover {
   opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-chat-counter {
+  flex: 1;
+  background: linear-gradient(135deg, #4a2d82, #6b3ba7);
+  border: 1px solid var(--border-gold);
+  color: #fff;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn-chat-counter:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 /* 今日委託羊皮紙板 (Quest Board) */
