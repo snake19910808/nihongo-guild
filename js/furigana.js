@@ -7,17 +7,30 @@ const FuriganaEngine = {
   currentMode: "all", // "all", "smart", "hidden"
   masteredWords: new Set(),
 
+  cachedVoices: [],
+
   init(initialMode = "all", masteredList = []) {
     this.currentMode = initialMode;
     this.masteredWords = new Set(masteredList);
     this.applyModeToBody();
     
-    // 預先載入瀏覽器語音清單
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
+    // 預先載入並持續快取瀏覽器語音清單
+    this.initVoices();
+  },
+
+  initVoices() {
+    if (!("speechSynthesis" in window)) return;
+    const update = () => {
+      try {
+        const v = window.speechSynthesis.getVoices();
+        if (v && v.length > 0) {
+          this.cachedVoices = v;
+        }
+      } catch (e) {}
+    };
+    update();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = update;
     }
   },
 
@@ -70,7 +83,7 @@ const FuriganaEngine = {
   /**
    * 詩織日語語音朗讀核心 (預設直接調用動漫高甜調諧音，零秒延遲且穩定絕不跑掉)
    */
-  speak(text) {
+  speak(text, options = {}) {
     if (!text) return;
     // 去除括號讀音與 HTML 標籤只保留純文字
     const cleanText = text.replace(/\[.*?\]/g, "").replace(/<[^>]*>/g, "").trim();
@@ -87,38 +100,73 @@ const FuriganaEngine = {
     // 若使用者主動在設定選擇了 VOICEVOX 聲線 (> 0) 才嘗試網路合成
     if (this.voicevoxSpeakerId && this.voicevoxSpeakerId > 0) {
       this.playVoicevox(cleanText).catch(() => {
-        this.speakBrowser(cleanText);
+        this.speakBrowser(cleanText, options);
       });
       return;
     }
 
     // 預設一律直接以瀏覽器動漫少女調諧音立即發音 (同步觸發，零延遲，絕不跑掉)
-    this.speakBrowser(cleanText);
+    this.speakBrowser(cleanText, options);
   },
 
   /**
    * 取得跨平台最佳日語語音包 (支援 Windows, Mac, Android ja_JP, iOS)
+   * 嚴格篩選動漫高甜女聲，堅決排除男性、機器人與非日語合成音
    */
   getBestJapaneseVoice() {
     if (!("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices();
+    let voices = this.cachedVoices;
+    if (!voices || voices.length === 0) {
+      voices = window.speechSynthesis.getVoices() || [];
+      if (voices.length > 0) this.cachedVoices = voices;
+    }
     if (!voices || voices.length === 0) return null;
 
-    // 1. 優先尋找 Google 日本語 (Chrome 內建極高品質神經網路語音)
-    const googleJa = voices.find((v) => 
-      v.name.includes("Google") && (v.lang.toLowerCase().startsWith("ja") || v.name.includes("日本語") || v.name.includes("Japanese"))
-    );
+    // 1. 優先尋找 Microsoft Nanami Online (Natural) - Edge 內建神級甜美自然女聲
+    const nanamiVoice = voices.find((v) => {
+      const n = v.name.toLowerCase();
+      return n.includes("nanami") && (v.lang.toLowerCase().startsWith("ja") || n.includes("japanese") || n.includes("japan"));
+    });
+    if (nanamiVoice) return nanamiVoice;
+
+    // 2. 優先尋找 Google 日本語 (Chrome 內建極高品質神經網路女聲)
+    const googleJa = voices.find((v) => {
+      const n = v.name.toLowerCase();
+      return n.includes("google") && (v.lang.toLowerCase().startsWith("ja") || n.includes("日本語") || n.includes("japanese"));
+    });
     if (googleJa) return googleJa;
 
-    // 2. 尋找常見優質女性日語音 (Nanami, Kyoko, Ayumi, Aoi, Mayu)
-    const femaleJa = voices.find((v) => {
+    // 3. 尋找 Windows / Mac / iOS 知名日系女性美聲 (Haruka, Ayumi, Sayaka, Kyoko, Otoya, Aoi, Mayu)
+    const sweetFemaleList = ["haruka", "ayumi", "sayaka", "kyoko", "otoya", "aoi", "mayu", "shiori", "hina"];
+    for (const name of sweetFemaleList) {
+      const found = voices.find((v) => {
+        const l = v.lang.replace("_", "-").toLowerCase();
+        const n = v.name.toLowerCase();
+        return (l.startsWith("ja") || n.includes("japanese") || n.includes("japan")) && n.includes(name);
+      });
+      if (found) return found;
+    }
+
+    // 4. 尋找標註 female 的日語語音
+    const anyFemaleJa = voices.find((v) => {
       const l = v.lang.replace("_", "-").toLowerCase();
       const n = v.name.toLowerCase();
-      return l.startsWith("ja") && (n.includes("female") || n.includes("nanami") || n.includes("kyoko") || n.includes("ayumi") || n.includes("aoi") || n.includes("mayu"));
+      return (l.startsWith("ja") || n.includes("japanese")) && (n.includes("female") || n.includes("女"));
     });
-    if (femaleJa) return femaleJa;
+    if (anyFemaleJa) return anyFemaleJa;
 
-    // 3. 任何日語語音 (相容 Android 的 ja_JP、Windows、Mac)
+    // 5. 任何日語語音 (相容 Android ja_JP 等)，但嚴格排除男性與非日語
+    const maleBlacklist = ["ichiro", "keita", "male", "david", "mark", "george", "hanhan", "yating", "zhiwei", "男"];
+    const safeJa = voices.find((v) => {
+      const l = v.lang.replace("_", "-").toLowerCase();
+      const n = v.name.toLowerCase();
+      const isJa = l.startsWith("ja") || n.includes("japanese") || n.includes("japan") || n.includes("日本語");
+      const isMale = maleBlacklist.some((bad) => n.includes(bad));
+      return isJa && !isMale;
+    });
+    if (safeJa) return safeJa;
+
+    // 6. 若實在只有普通日語語音 (例如 Android 原生 ja_JP)
     const anyJa = voices.find((v) => {
       const l = v.lang.replace("_", "-").toLowerCase();
       return l.startsWith("ja") || v.name.toLowerCase().includes("japanese") || v.name.includes("日本語");
@@ -129,7 +177,7 @@ const FuriganaEngine = {
   /**
    * 瀏覽器 Web Speech API 核心 (1.38 Pitch 高甜動漫調音)
    */
-  speakBrowser(cleanText) {
+  speakBrowser(cleanText, options = {}) {
     if (!("speechSynthesis" in window)) {
       console.warn("當前瀏覽器不支援 Web Speech API");
       return;
@@ -143,8 +191,8 @@ const FuriganaEngine = {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = "ja-JP";
     // 關鍵高甜調音：Pitch 設為 1.38，語速 1.05，徹底消除老太婆慢速機械老態！
-    utterance.pitch = 1.38;
-    utterance.rate = 1.05;
+    utterance.pitch = (options && options.pitch) ? options.pitch : 1.38;
+    utterance.rate = (options && options.rate) ? options.rate : 1.05;
 
     const voice = this.getBestJapaneseVoice();
     if (voice) {

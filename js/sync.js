@@ -8,7 +8,8 @@ const SyncManager = {
 
   defaultSettings: {
     geminiApiKey: "",
-    geminiModel: "gemini-2.5-flash",
+    geminiModel: "gemini-3.5-flash-lite",
+    voiceStyle: 0, // 0: 預設動漫高甜少女調諧音 (1.38 Pitch)
     githubPat: "",
     githubRepo: "snake19910808/nihongo-save"
   },
@@ -44,7 +45,12 @@ const SyncManager = {
   loadSettings() {
     try {
       const raw = localStorage.getItem(this.SETTINGS_KEY);
-      return raw ? { ...this.defaultSettings, ...JSON.parse(raw) } : { ...this.defaultSettings };
+      const s = raw ? { ...this.defaultSettings, ...JSON.parse(raw) } : { ...this.defaultSettings };
+      // 若舊版暫存殘留 17 或 undefined，重設預設為 0 (動漫高甜少女調諧音)
+      if (s.voiceStyle === undefined || s.voiceStyle === null || s.voiceStyle === "17" || s.voiceStyle === 17) {
+        s.voiceStyle = 0;
+      }
+      return s;
     } catch (e) {
       return { ...this.defaultSettings };
     }
